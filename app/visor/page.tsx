@@ -1,0 +1,162 @@
+import Link from "next/link";
+import {
+  getRounds,
+  getMatchesForRound,
+  getPlayerPredictions,
+  type VisorMatch,
+} from "@/lib/data/visor";
+import { getCurrentPlayer } from "@/lib/auth/current-player";
+import { MatchCard, type Accent } from "@/components/brand/match-card";
+import { SectionBanner } from "@/components/brand/section-banner";
+import { HScroll } from "@/components/brand/h-scroll";
+import { GroupJump } from "@/components/visor/group-jump";
+import { TeamSearch } from "@/components/visor/team-search";
+import { Screen } from "@/components/brand/screen";
+import { RealtimeRefresh } from "@/components/brand/realtime-refresh";
+import { classify, type HitKind } from "@/lib/domain/scoring";
+import { fmtKickoff } from "@/lib/format";
+import { COUNTRY_ES } from "@/lib/country-names-es";
+import { cn } from "@/lib/utils";
+
+const ACCENTS: Accent[] = ["neon", "magenta", "azure", "tangerine", "gold", "grape"];
+
+function accentForGroup(letter: string | null, i: number): Accent {
+  if (letter) return ACCENTS[(letter.charCodeAt(0) - 65) % ACCENTS.length];
+  return ACCENTS[i % ACCENTS.length];
+}
+
+export default async function VisorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ronda?: string }>;
+}) {
+  const rounds = await getRounds();
+  const { ronda } = await searchParams;
+  const current = rounds.find((r) => r.key === ronda) ?? rounds[0];
+  const player = await getCurrentPlayer();
+
+  const [matches, myPreds] = await Promise.all([
+    current ? getMatchesForRound(current.id) : Promise.resolve<VisorMatch[]>([]),
+    player ? getPlayerPredictions(player.id) : Promise.resolve(new Map()),
+  ]);
+
+  const isGroupStage = matches.some((m) => m.groupLetter);
+  const groups = new Map<string, VisorMatch[]>();
+  for (const m of matches) {
+    const key = m.groupLetter ?? "—";
+    (groups.get(key) ?? groups.set(key, []).get(key)!).push(m);
+  }
+  const groupLetters = [...groups.keys()].filter((k) => k !== "—").sort();
+  const searchTeam = (t: VisorMatch["home"], matchId: number) => {
+    const es = (t.flag && COUNTRY_ES[t.flag]) || "";
+    return {
+      // Mostramos nombre en español si lo hay; si no, el de la BD (inglés).
+      label: `${es.split("|")[0] || t.name} (${t.code})`,
+      matchId,
+      // Buscable en ambos idiomas + código (la normalización de tildes va en el componente).
+      keywords: `${t.name} ${t.code} ${es.replace(/\|/g, " ")}`,
+    };
+  };
+  const searchTeams = matches.flatMap((m) => [
+    searchTeam(m.home, m.id),
+    searchTeam(m.away, m.id),
+  ]);
+
+  function predFor(m: VisorMatch) {
+    const p = myPreds.get(m.id);
+    if (!p) return undefined;
+    const finished = m.status === "finished" && m.homeScore != null && m.awayScore != null;
+    const kind: HitKind | undefined = finished
+      ? classify({ home: p.home, away: p.away }, { home: m.homeScore!, away: m.awayScore! })
+      : undefined;
+    return { home: p.home, away: p.away, kind };
+  }
+
+  const header = (
+    <>
+      <h1 className="font-display text-4xl text-foreground">Visor</h1>
+      <HScroll className="-mx-4 mt-4">
+        <div className="flex gap-2 px-4">
+          {rounds.map((r) => (
+            <Link
+              key={r.id}
+              href={`/visor?ronda=${r.key}`}
+              className={cn(
+                "shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors",
+                r.id === current?.id
+                  ? "bg-neon text-black"
+                  : "bg-white/8 text-muted-foreground hover:bg-white/12",
+              )}
+            >
+              {r.label}
+            </Link>
+          ))}
+        </div>
+      </HScroll>
+      {matches.length > 0 && (
+        <div className="mt-3">
+          <TeamSearch teams={searchTeams} />
+        </div>
+      )}
+      {isGroupStage && <GroupJump groups={groupLetters} />}
+    </>
+  );
+
+  return (
+    <Screen header={header}>
+      <RealtimeRefresh />
+      {matches.length === 0 && (
+        <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+          Todavía no hay partidos en esta ronda.
+        </p>
+      )}
+
+      {isGroupStage ? (
+        <div className="flex flex-col gap-5">
+          {groupLetters.map((letter) => {
+            const acc = accentForGroup(letter, 0);
+            return (
+              <div key={letter} id={`grupo-${letter}`} className="flex scroll-mt-4 flex-col gap-3">
+                <SectionBanner accent={acc} className="sticky top-0 z-10">
+                  Grupo {letter}
+                </SectionBanner>
+                {groups.get(letter)!.map((m) => (
+                  <Link key={m.id} id={`match-${m.id}`} href={`/visor/${m.id}`} className="block">
+                    <MatchCard
+                      accent={acc}
+                      status={m.status}
+                      home={m.home}
+                      away={m.away}
+                      homeScore={m.homeScore}
+                      awayScore={m.awayScore}
+                      kickoff={fmtKickoff(m.kickoffAt)}
+                      prediction={predFor(m)}
+                    />
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {matches.map((m, i) => (
+            <Link key={m.id} id={`match-${m.id}`} href={`/visor/${m.id}`} className="block">
+              <MatchCard
+                accent={accentForGroup(null, i)}
+                status={m.status}
+                home={m.home}
+                away={m.away}
+                homeScore={m.homeScore}
+                awayScore={m.awayScore}
+                kickoff={fmtKickoff(m.kickoffAt)}
+                roundLabel={current?.label}
+                prediction={predFor(m)}
+              />
+            </Link>
+          ))}
+        </div>
+      )}
+    </Screen>
+  );
+}
