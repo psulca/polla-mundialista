@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Bandera de selección como SVG self-hosted (de flag-icons, copiados a /public/flags).
+ * Bandera de selección como PNG self-hosted (rasterizados de flag-icons → /public/flags).
  *
- * Se renderiza como <img>, NO como background-image. ¿Por qué? Las GPUs Mali de
- * gama baja (ej. Galaxy A21s) corrompen el render al componer un background-image
- * SVG dentro de un contenedor con scroll. Un <img> se compone por otra vía y NO
- * dispara el bug. (Confirmado aislando con la barra de diagnóstico.)
+ * Se usa PNG (no SVG), renderizado como <img>. ¿Por qué? Las GPUs Mali de gama baja
+ * (ej. Galaxy A21s) corrompen el render al rasterizar un SVG (sea background-image O
+ * <img>) dentro de un contenedor con scroll. Un PNG ya viene rasterizado → la GPU
+ * solo lo copia, sin dibujar vectores. (Confirmado aislando con la barra de diagnóstico.)
  *
  * El tamaño se controla con la clase de texto del contenedor (text-2xl, text-sm…):
  * la bandera mide 1.333em × 1em, así que escala con el font-size.
@@ -33,7 +33,7 @@ export function Flag({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`/flags/${code}.svg`}
+      src={`/flags/${code}.png`}
       alt=""
       aria-hidden
       className={cn(
