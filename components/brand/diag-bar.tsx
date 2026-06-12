@@ -23,6 +23,8 @@ type Key =
   | "shadow"
   | "gradient"
   | "overflow"
+  | "flagshadow"
+  | "flaground"
   | "bg"
   | "glow";
 
@@ -37,7 +39,16 @@ const SECTIONS: Key[] = [
   "flags",
   "top3",
 ];
-const ALL: Key[] = [...SECTIONS, "shadow", "gradient", "overflow", "bg", "glow"];
+const ALL: Key[] = [
+  ...SECTIONS,
+  "shadow",
+  "gradient",
+  "overflow",
+  "flagshadow",
+  "flaground",
+  "bg",
+  "glow",
+];
 
 function applyToggle(key: Key, isOff: boolean) {
   const heroes = () => document.querySelectorAll<HTMLElement>('[data-diag="hero"]');
@@ -54,6 +65,14 @@ function applyToggle(key: Key, isOff: boolean) {
       el.style.backgroundImage = isOff ? "none" : "";
       el.style.backgroundColor = isOff ? "#101019" : "";
     });
+  } else if (key === "flagshadow") {
+    document
+      .querySelectorAll<HTMLElement>(".fi")
+      .forEach((el) => (el.style.boxShadow = isOff ? "none" : ""));
+  } else if (key === "flaground") {
+    document
+      .querySelectorAll<HTMLElement>(".fi")
+      .forEach((el) => (el.style.borderRadius = isOff ? "0" : ""));
   } else if (key === "bg") {
     document.body.style.backgroundAttachment = isOff ? "scroll" : "";
   } else if (key === "glow") {
