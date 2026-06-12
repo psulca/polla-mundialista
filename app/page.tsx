@@ -110,9 +110,12 @@ export default async function Home() {
         </section>
       )}
 
-      {/* HÉROE: la fecha activa es la acción principal */}
-      <section className="ring-sticker mt-6 overflow-hidden rounded-3xl border border-neon/30 bg-[#0f1d1f]">
-        <div className="h-1.5 w-full bg-neon" />
+      {/* HÉROE: la fecha activa es la acción principal.
+          OJO Mali GPU: sin `ring-sticker` (box-shadow) ni `overflow-hidden` acá.
+          El <Countdown> repinta cada segundo; re-rasterizar una capa con sombra +
+          recorte redondeado en cada frame corrompe el render en GPUs de gama baja. */}
+      <section className="mt-6 rounded-3xl border border-neon/30 bg-[#0f1d1f]">
+        <div className="h-1.5 w-full rounded-t-3xl bg-neon" />
         <div className="px-5 py-5">
           <div className="flex items-start justify-between">
             <div>
