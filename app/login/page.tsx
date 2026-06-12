@@ -16,14 +16,17 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo.png"
-          alt="Polla Mundialista"
-          width={96}
-          height={96}
-          className="mb-4 size-24"
-        />
+        <picture>
+          <source srcSet="/logo.avif" type="image/avif" />
+          <source srcSet="/logo.webp" type="image/webp" />
+          <img
+            src="/logo.png"
+            alt="Polla Mundialista"
+            width={96}
+            height={96}
+            className="mb-4 size-24"
+          />
+        </picture>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-magenta px-3 py-1 text-[11px] font-extrabold uppercase tracking-widest text-white">
           <HugeiconsIcon icon={FootballIcon} size={13} strokeWidth={2.5} />{" "}
           Mundial 2026
