@@ -1,12 +1,15 @@
-import "flag-icons/css/flag-icons.min.css";
 import { cn } from "@/lib/utils";
 
 /**
- * Bandera de selección como SVG (flag-icons), auto-alojada — sin emoji.
- * Se ve idéntica en todo dispositivo, incluido Inglaterra/Escocia/Gales.
+ * Bandera de selección como SVG self-hosted (de flag-icons, copiados a /public/flags).
  *
- * El tamaño se controla con la clase de texto del contenedor (text-2xl, text-3xl…):
- * flag-icons dimensiona la bandera en `em`, así que escala con el font-size.
+ * Se renderiza como <img>, NO como background-image. ¿Por qué? Las GPUs Mali de
+ * gama baja (ej. Galaxy A21s) corrompen el render al componer un background-image
+ * SVG dentro de un contenedor con scroll. Un <img> se compone por otra vía y NO
+ * dispara el bug. (Confirmado aislando con la barra de diagnóstico.)
+ *
+ * El tamaño se controla con la clase de texto del contenedor (text-2xl, text-sm…):
+ * la bandera mide 1.333em × 1em, así que escala con el font-size.
  */
 export function Flag({
   code,
@@ -28,11 +31,13 @@ export function Flag({
     );
   }
   return (
-    <span
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/flags/${code}.svg`}
+      alt=""
       aria-hidden
       className={cn(
-        "fi shrink-0 rounded-2px shadow-[0_0_0_1px_rgba(0,0,0,0.25)]",
-        `fi-${code}`,
+        "inline-block h-[1em] w-[1.333em] shrink-0 rounded-2px object-cover shadow-[0_0_0_1px_rgba(0,0,0,0.25)]",
         className,
       )}
     />
