@@ -55,8 +55,8 @@ const BODY_RADIALS =
 
 export default function DiagPage() {
   return (
-    // Fondo sólido opaco: tapa el fondo global del body para no confundir.
-    <main className="min-h-screen bg-[#07070a] px-4 py-6">
+    // Fondo sólido opaco + scroll propio (el layout no scrollea por sí solo).
+    <main className="h-full overflow-y-auto bg-[#07070a] px-4 py-6">
       <div className="mx-auto flex max-w-md flex-col gap-4">
         <div className="rounded-xl border border-[#00e676]/40 bg-[#00e676]/10 p-3 text-sm text-white">
           <p className="font-bold">Diagnóstico de render</p>
