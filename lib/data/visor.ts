@@ -1,4 +1,6 @@
 import "server-only";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MatchStatus, Stage } from "@/lib/types";
 import type { LockMode } from "@/lib/domain/locking";
@@ -31,14 +33,14 @@ export interface VisorMatch {
   away: VisorTeam;
 }
 
-interface TeamLite {
+export interface TeamRow {
   id: number;
   code: string | null;
   country_code: string | null;
   name: string | null;
 }
 
-function side(team: TeamLite | undefined, label: string | null): VisorTeam {
+function side(team: TeamRow | undefined, label: string | null): VisorTeam {
   if (team)
     return {
       code: team.code ?? "???",
@@ -62,21 +64,52 @@ export async function getPlayerPredictions(
   );
 }
 
-/** Todas las rondas, ordenadas (las "fechas" que abre el admin). */
-export async function getRounds(): Promise<RoundRow[]> {
-  const db = createAdminClient();
-  const { data, error } = await db
-    .from("rounds")
-    .select("id, key, label, sort_order, is_open, lock_mode")
-    .order("sort_order");
-  if (error) throw new Error(`getRounds: ${error.message}`);
-  return (data ?? []) as RoundRow[];
-}
+/**
+ * Equipos del Mundial: cuasi-estáticos (no cambian durante el torneo).
+ * Caché remoto con tag "teams" (revalidate 1h) + memo por request con cache().
+ * OJO: no toca cookies/sesión — apto para unstable_cache.
+ */
+export const getTeams = cache(
+  unstable_cache(
+    async (): Promise<TeamRow[]> => {
+      const db = createAdminClient();
+      const { data, error } = await db
+        .from("teams")
+        .select("id, code, country_code, name");
+      if (error) throw new Error(`getTeams: ${error.message}`);
+      return (data ?? []) as TeamRow[];
+    },
+    ["teams"],
+    { tags: ["teams"], revalidate: 3600 },
+  ),
+);
+
+/**
+ * Todas las rondas, ordenadas (las "fechas" que abre el admin).
+ * Cambian solo cuando el admin abre/cierra/configura fechas → caché remoto con
+ * tag "rounds" (revalidate 300s; las server actions del admin hacen updateTag).
+ * cache() además dedupea las llamadas repetidas dentro de un mismo request.
+ */
+export const getRounds = cache(
+  unstable_cache(
+    async (): Promise<RoundRow[]> => {
+      const db = createAdminClient();
+      const { data, error } = await db
+        .from("rounds")
+        .select("id, key, label, sort_order, is_open, lock_mode")
+        .order("sort_order");
+      if (error) throw new Error(`getRounds: ${error.message}`);
+      return (data ?? []) as RoundRow[];
+    },
+    ["rounds"],
+    { tags: ["rounds"], revalidate: 300 },
+  ),
+);
 
 /** Partidos de una ronda, con equipos resueltos (join en JS, a prueba de balas). */
-export async function getMatchesForRound(roundId: number): Promise<VisorMatch[]> {
+export const getMatchesForRound = cache(async (roundId: number): Promise<VisorMatch[]> => {
   const db = createAdminClient();
-  const [matchesRes, teamsRes] = await Promise.all([
+  const [matchesRes, teams] = await Promise.all([
     db
       .from("matches")
       .select(
@@ -84,12 +117,11 @@ export async function getMatchesForRound(roundId: number): Promise<VisorMatch[]>
       )
       .eq("round_id", roundId)
       .order("kickoff_at"),
-    db.from("teams").select("id, code, country_code, name"),
+    getTeams(),
   ]);
   if (matchesRes.error) throw new Error(`getMatchesForRound: ${matchesRes.error.message}`);
-  if (teamsRes.error) throw new Error(`getTeams: ${teamsRes.error.message}`);
 
-  const byId = new Map<number, TeamLite>((teamsRes.data ?? []).map((t) => [t.id, t]));
+  const byId = new Map<number, TeamRow>(teams.map((t) => [t.id, t]));
 
   return (matchesRes.data ?? []).map((m) => ({
     id: m.id,
@@ -103,4 +135,4 @@ export async function getMatchesForRound(roundId: number): Promise<VisorMatch[]>
     home: side(m.home_team_id ? byId.get(m.home_team_id) : undefined, m.home_label),
     away: side(m.away_team_id ? byId.get(m.away_team_id) : undefined, m.away_label),
   }));
-}
+});

@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getRounds, type RoundRow } from "./visor";
+import { getRounds, getTeams, type RoundRow, type TeamRow } from "./visor";
 import { getLeaderboard, type LeaderRow } from "./ranking";
 import type { MatchStatus } from "@/lib/types";
 
@@ -25,25 +25,19 @@ export interface HomeData {
   playerCount: number;
 }
 
-interface TeamLite {
-  id: number;
-  code: string | null;
-  country_code: string | null;
-}
-
 export async function getHomeData(playerId: string | null): Promise<HomeData> {
   const db = createAdminClient();
   const rounds = await getRounds();
   const openRound = rounds.find((r) => r.is_open) ?? null;
 
-  const [matchesRes, teamsRes, entriesRes, top] = await Promise.all([
+  const [matchesRes, teams, entriesRes, top, predsRes] = await Promise.all([
     db
       .from("matches")
       .select(
         "id, home_team_id, away_team_id, home_label, away_label, kickoff_at, status, home_score, away_score, round_id",
       )
       .order("kickoff_at"),
-    db.from("teams").select("id, code, country_code"),
+    getTeams(),
     // Pozo de la fecha activa = inscritos en esa ronda.
     openRound
       ? db
@@ -52,12 +46,15 @@ export async function getHomeData(playerId: string | null): Promise<HomeData> {
           .eq("round_id", openRound.id)
       : Promise.resolve({ count: 0 }),
     getLeaderboard("general"),
+    // Predicciones del jugador (solo match_id, ≤104 filas): va EN PARALELO acá
+    // en vez de como query secuencial después — el filtro por ronda se hace en JS.
+    playerId
+      ? db.from("predictions").select("match_id").eq("player_id", playerId)
+      : Promise.resolve({ data: null }),
   ]);
 
   const all = matchesRes.data ?? [];
-  const tmap = new Map<number, TeamLite>(
-    (teamsRes.data ?? []).map((t) => [t.id, t]),
-  );
+  const tmap = new Map<number, TeamRow>(teams.map((t) => [t.id, t]));
   const side = (id: number | null, label: string | null) => {
     const t = id ? tmap.get(id) : null;
     return t
@@ -101,15 +98,8 @@ export async function getHomeData(playerId: string | null): Promise<HomeData> {
       null,
     );
     if (playerId && roundMatches.length) {
-      const { data: preds } = await db
-        .from("predictions")
-        .select("match_id")
-        .eq("player_id", playerId)
-        .in(
-          "match_id",
-          roundMatches.map((m) => m.id),
-        );
-      filled = preds?.length ?? 0;
+      const roundIds = new Set(roundMatches.map((m) => m.id));
+      filled = (predsRes.data ?? []).filter((p) => roundIds.has(p.match_id)).length;
     }
   }
 

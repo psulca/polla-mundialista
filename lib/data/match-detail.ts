@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getRounds, getTeams, type TeamRow } from "./visor";
 import type { MatchStatus } from "@/lib/types";
 import { classify, scorePrediction, type HitKind } from "@/lib/domain/scoring";
 
@@ -36,34 +37,39 @@ export interface MatchDetail {
   rows: DetailRow[];
 }
 
-interface TeamLite {
-  id: number;
-  code: string | null;
-  country_code: string | null;
-}
-
 export async function getMatchDetail(
   matchId: number,
   currentPlayerId: string | null,
 ): Promise<MatchDetail | null> {
   const db = createAdminClient();
-  const { data: m } = await db
-    .from("matches")
-    .select(
-      "id, home_team_id, away_team_id, home_label, away_label, home_score, away_score, status, kickoff_at, group_letter, round_id",
-    )
-    .eq("id", matchId)
-    .maybeSingle();
+  // Nada de esto depende del resultado del match → TODO en paralelo con su query.
+  // El label de la ronda sale de getRounds() (caché remoto), sin query extra.
+  const [matchRes, teams, rounds, approvedRes, predsRes] = await Promise.all([
+    db
+      .from("matches")
+      .select(
+        "id, home_team_id, away_team_id, home_label, away_label, home_score, away_score, status, kickoff_at, group_letter, round_id",
+      )
+      .eq("id", matchId)
+      .maybeSingle(),
+    getTeams(),
+    getRounds(),
+    db
+      .from("players")
+      .select("id, display_name")
+      .eq("status", "approved")
+      .order("display_name")
+      .limit(500),
+    db
+      .from("predictions")
+      .select("player_id, pred_home, pred_away")
+      .eq("match_id", matchId)
+      .limit(500),
+  ]);
+  const m = matchRes.data;
   if (!m) return null;
 
-  const [teamsRes, roundRes, approvedRes, predsRes] = await Promise.all([
-    db.from("teams").select("id, code, country_code"),
-    db.from("rounds").select("label").eq("id", m.round_id).maybeSingle(),
-    db.from("players").select("id, display_name").eq("status", "approved").order("display_name"),
-    db.from("predictions").select("player_id, pred_home, pred_away").eq("match_id", matchId),
-  ]);
-
-  const tmap = new Map<number, TeamLite>((teamsRes.data ?? []).map((t) => [t.id, t]));
+  const tmap = new Map<number, TeamRow>(teams.map((t) => [t.id, t]));
   function side(id: number | null, label: string | null): DetailTeam {
     const t = id ? tmap.get(id) : null;
     return t ? { code: t.code ?? "???", flag: t.country_code ?? "" } : { code: label ?? "—", flag: "" };
@@ -111,7 +117,7 @@ export async function getMatchDetail(
     awayScore: m.away_score,
     status: m.status as MatchStatus,
     kickoffAt: m.kickoff_at,
-    roundLabel: roundRes.data?.label ?? "",
+    roundLabel: rounds.find((r) => r.id === m.round_id)?.label ?? "",
     groupLetter: m.group_letter,
     revealed,
     finished,

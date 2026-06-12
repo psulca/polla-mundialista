@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentPlayer } from "@/lib/auth/current-player";
 
@@ -51,6 +51,9 @@ export async function toggleRound(formData: FormData) {
     .update({ is_open: open })
     .eq("id", id);
   assertOk(error, "Abrir/cerrar fecha");
+  // Expira el caché remoto de getRounds() YA (read-your-writes): el admin ve
+  // el cambio al instante y los jugadores no quedan con una fecha vieja.
+  updateTag("rounds");
   revalidateAll();
 }
 
@@ -65,6 +68,7 @@ export async function setRoundLockMode(formData: FormData) {
   if (round?.is_open) return;
   const { error } = await db.from("rounds").update({ lock_mode: mode }).eq("id", roundId);
   assertOk(error, "Cambiar modo de cierre");
+  updateTag("rounds"); // getRounds() cachea lock_mode → expirar ya.
   revalidateAll();
 }
 
