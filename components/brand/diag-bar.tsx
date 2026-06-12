@@ -1,0 +1,87 @@
+"use client";
+
+import { useState } from "react";
+
+/**
+ * Barra de diagnóstico del bug de render (GPU Mali). Se muestra solo con ?diag=1.
+ * Apaga partes del inicio EN VIVO por DOM (sin navegar → no pierde el scroll).
+ * El usuario apaga cosas hasta que el glitch desaparece → esa es la causa.
+ *
+ * Requiere que las secciones del home tengan data-diag="header|live|hero|grid|top3".
+ */
+
+type Key =
+  | "header"
+  | "live"
+  | "hero"
+  | "grid"
+  | "top3"
+  | "shadow"
+  | "gradient"
+  | "overflow"
+  | "bg"
+  | "glow";
+
+const SECTIONS: Key[] = ["header", "live", "hero", "grid", "top3"];
+const ALL: Key[] = [...SECTIONS, "shadow", "gradient", "overflow", "bg", "glow"];
+
+function applyToggle(key: Key, isOff: boolean) {
+  const heroes = () => document.querySelectorAll<HTMLElement>('[data-diag="hero"]');
+  if (SECTIONS.includes(key)) {
+    document
+      .querySelectorAll<HTMLElement>(`[data-diag="${key}"]`)
+      .forEach((el) => (el.style.display = isOff ? "none" : ""));
+  } else if (key === "shadow") {
+    heroes().forEach((el) => el.classList.toggle("ring-sticker", !isOff));
+  } else if (key === "overflow") {
+    heroes().forEach((el) => el.classList.toggle("overflow-hidden", !isOff));
+  } else if (key === "gradient") {
+    heroes().forEach((el) => {
+      el.style.backgroundImage = isOff ? "none" : "";
+      el.style.backgroundColor = isOff ? "#101019" : "";
+    });
+  } else if (key === "bg") {
+    document.body.style.backgroundAttachment = isOff ? "scroll" : "";
+  } else if (key === "glow") {
+    document.body.style.backgroundImage = isOff ? "none" : "";
+  }
+}
+
+export function DiagBar() {
+  const [off, setOff] = useState<Set<Key>>(new Set());
+
+  function toggle(key: Key) {
+    setOff((prev) => {
+      const next = new Set(prev);
+      const isOff = !next.has(key);
+      if (isOff) next.add(key);
+      else next.delete(key);
+      applyToggle(key, isOff);
+      return next;
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-x-0 top-0 flex flex-wrap gap-1 border-b border-white/20 p-2"
+      style={{ zIndex: 100, background: "rgba(0,0,0,0.95)" }}
+    >
+      <span className="w-full text-[10px] font-bold text-white/70">
+        DIAG — toca para APAGAR (rojo = apagado). Scrollea y busca con qué se limpia.
+      </span>
+      {ALL.map((k) => (
+        <button
+          key={k}
+          onClick={() => toggle(k)}
+          className="rounded px-2 py-1 text-[10px] font-bold"
+          style={{
+            background: off.has(k) ? "#ff4d5e" : "rgba(255,255,255,0.15)",
+            color: off.has(k) ? "#000" : "#fff",
+          }}
+        >
+          {k}
+        </button>
+      ))}
+    </div>
+  );
+}

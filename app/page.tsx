@@ -17,6 +17,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { fmtKickoff } from "@/lib/format";
 import { ENTRY_FEE } from "@/lib/data/entries";
+import { DiagBar } from "@/components/brand/diag-bar";
 import { cn } from "@/lib/utils";
 
 export default async function Home() {
@@ -33,15 +34,23 @@ export default async function Home() {
       <Screen>
         <div className="flex min-h-[70vh] flex-col items-center justify-center px-2 text-center">
           <span className="relative flex size-16 items-center justify-center rounded-full bg-magenta/15">
-            <HugeiconsIcon icon={Time04Icon} size={30} strokeWidth={2} className="text-magenta" />
+            <HugeiconsIcon
+              icon={Time04Icon}
+              size={30}
+              strokeWidth={2}
+              className="text-magenta"
+            />
           </span>
           <h1 className="font-display mt-4 text-3xl leading-tight text-foreground">
             Casi listo, {player.displayName}
           </h1>
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-            Tu cuenta está <span className="font-bold text-foreground">pendiente de aprobación</span>.
-            Paga tu inscripción e informa por WhatsApp; en cuanto el admin te habilite, entras a
-            cargar tus pronósticos.
+            Tu cuenta está{" "}
+            <span className="font-bold text-foreground">
+              pendiente de aprobación
+            </span>
+            . Paga tu inscripción e informa por WhatsApp; en cuanto el admin te
+            habilite, entras a cargar tus pronósticos.
           </p>
         </div>
       </Screen>
@@ -51,7 +60,8 @@ export default async function Home() {
   return (
     <Screen>
       <RealtimeRefresh />
-      <header>
+      <DiagBar />
+      <header data-diag="header">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-magenta px-3 py-1 text-[11px] font-extrabold uppercase tracking-widest text-white">
           <HugeiconsIcon icon={FootballIcon} size={13} strokeWidth={2.5} />{" "}
           Mundial 2026
@@ -68,7 +78,7 @@ export default async function Home() {
               </span>
             </>
           ) : (
-            "Predice los marcadores. Gana puntos. Humilla a tus amigos."
+            "Predice los marcadores. Gana puntos."
           )}
         </p>
       </header>
@@ -85,7 +95,7 @@ export default async function Home() {
 
       {/* En vivo ahora — máxima prioridad, va arriba */}
       {live.length > 0 && (
-        <section className="mt-6">
+        <section className="mt-6" data-diag="live">
           <h2 className="font-display flex items-center gap-2 text-xl">
             <span className="relative flex size-2.5">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive opacity-75" />
@@ -111,7 +121,10 @@ export default async function Home() {
       )}
 
       {/* HÉROE: la fecha activa es la acción principal */}
-      <section className="ring-sticker mt-6 overflow-hidden rounded-3xl border border-neon/30 bg-linear-to-b from-neon/12 to-card">
+      <section
+        data-diag="hero"
+        className="ring-sticker mt-6 overflow-hidden rounded-3xl border border-neon/30 bg-linear-to-b from-neon/12 to-card"
+      >
         <div className="h-1.5 w-full bg-neon" />
         <div className="px-5 py-5">
           <div className="flex items-start justify-between">
@@ -175,6 +188,7 @@ export default async function Home() {
 
       {/* Datos compactos: pozo + próximo partido, lado a lado */}
       <div
+        data-diag="grid"
         className={cn("mt-4 grid gap-3", next ? "grid-cols-2" : "grid-cols-1")}
       >
         <div className="flex flex-col justify-between rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3.5">
@@ -222,7 +236,7 @@ export default async function Home() {
       </div>
 
       {/* Top 3 */}
-      <section className="mt-6">
+      <section className="mt-6" data-diag="top3">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-display text-xl">Top 3</h2>
           <Link
