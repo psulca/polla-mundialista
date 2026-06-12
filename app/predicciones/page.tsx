@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { requireApproved } from "@/lib/auth/current-player";
 import { getPredictionScreen } from "@/lib/data/predicciones";
+import { getRounds } from "@/lib/data/visor";
 import {
   PredictionEditor,
   type PredMatchDTO,
@@ -31,20 +33,13 @@ export default async function PrediccionesPage({
   searchParams: Promise<{ ronda?: string }>;
 }) {
   const player = await requireApproved();
-
   const { ronda } = await searchParams;
-  const { openRounds, current, matches } = await getPredictionScreen(player.id, ronda);
-  if (!current) return <Gate>No hay ninguna fecha abierta todavía. ¡Pronto!</Gate>;
 
-  const dto: PredMatchDTO[] = matches.map((m) => ({
-    id: m.id,
-    groupLetter: m.groupLetter,
-    kickoff: fmtKickoff(m.kickoffAt),
-    locked: m.locked,
-    home: m.home,
-    away: m.away,
-    pred: m.pred,
-  }));
+  // Solo las fechas abiertas (rápido) → pastillas al instante.
+  const rounds = await getRounds();
+  const openRounds = rounds.filter((r) => r.is_open);
+  const current = (ronda ? rounds.find((r) => r.key === ronda) : null) ?? openRounds[0] ?? null;
+  if (!current) return <Gate>No hay ninguna fecha abierta todavía. ¡Pronto!</Gate>;
 
   const header = (
     <>
@@ -77,7 +72,41 @@ export default async function PrediccionesPage({
 
   return (
     <Screen header={header}>
-      <PredictionEditor matches={dto} roundLabel={current.label} />
+      {/* Los partidos cargan en su contenedor: skeleton al cambiar de fecha. */}
+      <Suspense key={current.id} fallback={<PredSkeleton />}>
+        <PredBody playerId={player.id} ronda={ronda} />
+      </Suspense>
     </Screen>
+  );
+}
+
+async function PredBody({ playerId, ronda }: { playerId: string; ronda?: string }) {
+  const { current, matches } = await getPredictionScreen(playerId, ronda);
+  if (!current) return null; // la página ya filtró este caso
+
+  const dto: PredMatchDTO[] = matches.map((m) => ({
+    id: m.id,
+    groupLetter: m.groupLetter,
+    kickoff: fmtKickoff(m.kickoffAt),
+    locked: m.locked,
+    home: m.home,
+    away: m.away,
+    pred: m.pred,
+  }));
+
+  return <PredictionEditor matches={dto} roundLabel={current.label} />;
+}
+
+function PredSkeleton() {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="mb-1 h-12 animate-pulse rounded-xl bg-white/8" />
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-24 animate-pulse rounded-2xl border border-border bg-card"
+        />
+      ))}
+    </div>
   );
 }

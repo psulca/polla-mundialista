@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/current-player";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,10 +43,12 @@ export default async function AdminPage({
 
   const scoreRound = rounds.find((r) => r.key === ronda) ?? rounds[0];
   const payRound = rounds.find((r) => r.key === pago) ?? rounds.find((r) => r.is_open) ?? rounds[0];
-  const [matches, entryIds] = await Promise.all([
-    tab === "marcadores" && scoreRound ? getMatchesForRound(scoreRound.id) : Promise.resolve([]),
-    tab === "jugadores" && payRound ? getRoundEntryPlayerIds(payRound.id) : Promise.resolve(new Set<string>()),
-  ]);
+  // Los partidos del tab marcadores se cargan en su propio <Suspense> (skeleton al
+  // cambiar de fecha) → no se piden acá para no bloquear el render del admin.
+  const entryIds =
+    tab === "jugadores" && payRound
+      ? await getRoundEntryPlayerIds(payRound.id)
+      : new Set<string>();
 
   const { count: koStarted } = await db
     .from("matches")
@@ -380,23 +383,42 @@ export default async function AdminPage({
             </div>
           </HScroll>
           <ScrollArea className="mt-3 min-h-0 flex-1">
-            <div className="flex flex-col gap-2 pb-2">
-              {matches.map((m) => (
-                <ScoreEditor
-                  key={m.id}
-                  id={m.id}
-                  home={m.home}
-                  away={m.away}
-                  homeScore={m.homeScore}
-                  awayScore={m.awayScore}
-                  isKnockout={m.stage !== "group"}
-                  advancer={m.advancer}
-                />
-              ))}
-            </div>
+            <Suspense key={scoreRound?.id ?? "none"} fallback={<ScoreSkeleton />}>
+              <MarcadoresList roundId={scoreRound?.id ?? null} />
+            </Suspense>
           </ScrollArea>
         </div>
       )}
+    </div>
+  );
+}
+
+async function MarcadoresList({ roundId }: { roundId: number | null }) {
+  const matches = roundId ? await getMatchesForRound(roundId) : [];
+  return (
+    <div className="flex flex-col gap-2 pb-2">
+      {matches.map((m) => (
+        <ScoreEditor
+          key={m.id}
+          id={m.id}
+          home={m.home}
+          away={m.away}
+          homeScore={m.homeScore}
+          awayScore={m.awayScore}
+          isKnockout={m.stage !== "group"}
+          advancer={m.advancer}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ScoreSkeleton() {
+  return (
+    <div className="flex flex-col gap-2 pb-2">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="h-12 animate-pulse rounded-xl border border-border bg-card" />
+      ))}
     </div>
   );
 }
