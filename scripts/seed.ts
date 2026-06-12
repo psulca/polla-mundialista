@@ -182,9 +182,21 @@ function classifyRounds(matches: OFMatch[]): Map<string, RoundInfo> {
 
 function kickoff(m: OFMatch): string {
   const date = m.date ?? "2026-06-11";
-  const time = /^\d{2}:\d{2}/.test(m.time ?? "") ? m.time!.slice(0, 5) : "12:00";
-  // openfootball no siempre trae offset; tomamos UTC y el cron de football-data corrige.
-  const d = new Date(`${date}T${time}:00Z`);
+  const raw = (m.time ?? "").trim();
+  const hm = /^(\d{2}:\d{2})/.exec(raw)?.[1] ?? "12:00";
+  // openfootball SÍ trae el offset de la sede: "13:00 UTC-6", "12:00 UTC-4", etc.
+  // Lo respetamos para guardar el instante real en UTC (no el reloj local de la sede).
+  const off = /UTC\s*([+-]\d{1,2})(?::?(\d{2}))?/.exec(raw);
+  let iso: string;
+  if (off) {
+    const sign = off[1].startsWith("-") ? "-" : "+";
+    const hh = String(Math.abs(parseInt(off[1], 10))).padStart(2, "0");
+    const mm = off[2] ?? "00";
+    iso = `${date}T${hm}:00${sign}${hh}:${mm}`;
+  } else {
+    iso = `${date}T${hm}:00Z`; // sin offset explícito → asumimos UTC
+  }
+  const d = new Date(iso);
   return isNaN(d.getTime()) ? new Date(`${date}T12:00:00Z`).toISOString() : d.toISOString();
 }
 
