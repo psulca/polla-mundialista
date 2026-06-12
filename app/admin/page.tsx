@@ -1,0 +1,402 @@
+import Link from "next/link";
+import { requireAdmin } from "@/lib/auth/current-player";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getRounds, getMatchesForRound } from "@/lib/data/visor";
+import { getRoundEntryPlayerIds, ENTRY_FEE } from "@/lib/data/entries";
+import { SectionBanner } from "@/components/brand/section-banner";
+import { HScroll } from "@/components/brand/h-scroll";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScoreEditor } from "@/components/admin/score-editor";
+import { RejectPlayer } from "@/components/admin/reject-player";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Edit02Icon, EraserIcon, SquareLock02Icon, Coins01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { approvePlayer, toggleRound, setRoundLockMode, setKnockoutBonus, toggleEntry } from "./actions";
+import { fmtPhone } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+const TABS = [
+  { key: "jugadores", label: "Jugadores" },
+  { key: "fechas", label: "Fechas" },
+  { key: "marcadores", label: "Marcadores" },
+] as const;
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ t?: string; ronda?: string; pago?: string }>;
+}) {
+  await requireAdmin();
+
+  const db = createAdminClient();
+  const { t, ronda, pago } = await searchParams;
+  const tab = TABS.some((x) => x.key === t) ? (t as (typeof TABS)[number]["key"]) : "jugadores";
+
+  const [{ data: pending }, { data: approved }, rounds, { data: settings }] = await Promise.all([
+    db.from("players").select("id, display_name, phone").eq("status", "pending").order("created_at"),
+    db.from("players").select("id, display_name, phone").eq("status", "approved").order("display_name"),
+    getRounds(),
+    db.from("settings").select("knockout_bonus").eq("id", 1).maybeSingle(),
+  ]);
+  const knockoutBonus = settings?.knockout_bonus ?? false;
+
+  const scoreRound = rounds.find((r) => r.key === ronda) ?? rounds[0];
+  const payRound = rounds.find((r) => r.key === pago) ?? rounds.find((r) => r.is_open) ?? rounds[0];
+  const [matches, entryIds] = await Promise.all([
+    tab === "marcadores" && scoreRound ? getMatchesForRound(scoreRound.id) : Promise.resolve([]),
+    tab === "jugadores" && payRound ? getRoundEntryPlayerIds(payRound.id) : Promise.resolve(new Set<string>()),
+  ]);
+
+  const { count: koStarted } = await db
+    .from("matches")
+    .select("id", { count: "exact", head: true })
+    .neq("stage", "group")
+    .lte("kickoff_at", new Date().toISOString());
+  const knockoutFrozen = (koStarted ?? 0) > 0;
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header fijo: solo las pestañas (sin título, para no comer espacio) */}
+      <div className="mx-auto w-full max-w-md shrink-0 px-4 pb-3 pt-5">
+        <nav className="grid grid-cols-3 gap-2">
+          {TABS.map((x) => (
+            <Link
+              key={x.key}
+              href={`/admin?t=${x.key}`}
+              className={cn(
+                "rounded-xl py-2.5 text-center text-sm font-bold uppercase tracking-wide transition-colors",
+                x.key === tab ? "bg-neon text-black" : "bg-white/8 text-muted-foreground hover:bg-white/12",
+              )}
+            >
+              {x.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+
+      {/* Jugadores y Fechas: la página entera scrollea (un solo scroll) */}
+      {tab !== "marcadores" && (
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-7 px-4 pb-10 pt-2">
+          {tab === "jugadores" && (
+            <>
+              {/* Aprobar cuentas */}
+              <section className="flex flex-col gap-3">
+                <SectionBanner accent="magenta" right={`${pending?.length ?? 0}`}>
+                  Aprobar jugadores
+                </SectionBanner>
+                <div className="ring-sticker overflow-hidden rounded-2xl border border-border bg-card">
+                  {(!pending || pending.length === 0) && (
+                    <p className="px-4 py-5 text-center text-sm text-muted-foreground">
+                      No hay jugadores esperando aprobación.
+                    </p>
+                  )}
+                  {pending?.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-bold">{p.display_name}</p>
+                        <p className="tnum text-xs text-muted-foreground">{fmtPhone(p.phone)}</p>
+                      </div>
+                      <form action={approvePlayer}>
+                        <input type="hidden" name="playerId" value={p.id} />
+                        <button className="rounded-lg bg-neon px-3 py-1.5 text-xs font-extrabold uppercase text-black">
+                          Aprobar
+                        </button>
+                      </form>
+                      <RejectPlayer playerId={p.id} name={p.display_name} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Pagos por fecha */}
+              <section className="flex flex-col gap-3">
+                <SectionBanner accent="gold" right={payRound?.label}>
+                  Pagos por fecha
+                </SectionBanner>
+                <p className="-mt-1 text-xs text-muted-foreground">
+                  Marca quién pagó cada fecha. Solo los que pagaron entran al pozo y al ranking de esa fecha.
+                </p>
+                <HScroll className="-mx-4">
+                  <div className="flex gap-2 px-4">
+                    {rounds.map((r) => (
+                      <Link
+                        key={r.id}
+                        href={`/admin?t=jugadores&pago=${r.key}`}
+                        scroll={false}
+                        className={cn(
+                          "shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide",
+                          r.id === payRound?.id ? "bg-gold text-black" : "bg-white/8 text-muted-foreground",
+                        )}
+                      >
+                        {r.label}
+                      </Link>
+                    ))}
+                  </div>
+                </HScroll>
+                <div className="flex items-center justify-between rounded-xl border border-gold/30 bg-gold/10 px-4 py-2.5 text-sm">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <HugeiconsIcon icon={Coins01Icon} size={15} strokeWidth={2} className="text-gold" />
+                    Pozo · {entryIds.size} inscritos
+                  </span>
+                  <span className="font-display tnum text-xl text-gold">S/ {entryIds.size * ENTRY_FEE}</span>
+                </div>
+                <div className="ring-sticker overflow-hidden rounded-2xl border border-border bg-card">
+                  {(!approved || approved.length === 0) && (
+                    <p className="px-4 py-5 text-center text-sm text-muted-foreground">
+                      Todavía no hay jugadores aprobados.
+                    </p>
+                  )}
+                  {approved?.map((p) => {
+                    const entered = entryIds.has(p.id);
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-bold">{p.display_name}</p>
+                          <p className="tnum text-xs text-muted-foreground">{fmtPhone(p.phone)}</p>
+                        </div>
+                        {entered ? (
+                          // Quitar un pago pide confirmación (saca del pozo).
+                          <ConfirmSubmit
+                            action={toggleEntry}
+                            fields={{ roundId: String(payRound?.id ?? ""), playerId: p.id, on: "false" }}
+                            title={`¿Quitar el pago de ${p.display_name}?`}
+                            description={`Sale del pozo y del ranking de ${payRound?.label}.`}
+                            confirmLabel="Quitar"
+                            tone="danger"
+                            className="flex items-center gap-1.5 rounded-lg bg-neon px-3 py-1.5 text-xs font-extrabold uppercase text-black"
+                          >
+                            <HugeiconsIcon icon={Tick02Icon} size={13} strokeWidth={2.5} />
+                            Pagó
+                          </ConfirmSubmit>
+                        ) : (
+                          <form action={toggleEntry}>
+                            <input type="hidden" name="roundId" value={payRound?.id ?? ""} />
+                            <input type="hidden" name="playerId" value={p.id} />
+                            <input type="hidden" name="on" value="true" />
+                            <button className="rounded-lg bg-white/8 px-3 py-1.5 text-xs font-extrabold uppercase text-muted-foreground">
+                              Marcar
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            </>
+          )}
+
+          {tab === "fechas" && (
+            <>
+              {/* Abrir / cerrar fechas */}
+              <section className="flex flex-col gap-3">
+                <SectionBanner accent="azure">Abrir / cerrar fechas</SectionBanner>
+                <p className="-mt-1 text-xs text-muted-foreground">
+                  Abre una fecha para que los jugadores puedan cargar sus pronósticos. Mientras está
+                  abierta, predicen; al cerrarla, ya no. (Igual cada partido se congela en su kickoff.)
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {rounds.map((r) => (
+                    <ConfirmSubmit
+                      key={r.id}
+                      action={toggleRound}
+                      fields={{ roundId: String(r.id), open: (!r.is_open).toString() }}
+                      title={r.is_open ? `¿Cerrar ${r.label}?` : `¿Abrir ${r.label}?`}
+                      description={
+                        r.is_open
+                          ? "Los jugadores ya no van a poder cargar ni editar sus pronósticos de esta fecha."
+                          : "Los jugadores van a poder cargar sus pronósticos de esta fecha."
+                      }
+                      confirmLabel={r.is_open ? "Cerrar" : "Abrir"}
+                      tone={r.is_open ? "danger" : "default"}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold",
+                        r.is_open ? "bg-neon text-black" : "bg-white/8 text-muted-foreground",
+                      )}
+                    >
+                      <span className="truncate">{r.label}</span>
+                      <span>{r.is_open ? "Abierta" : "Cerrada"}</span>
+                    </ConfirmSubmit>
+                  ))}
+                </div>
+              </section>
+
+              {/* Modo de cierre por fecha */}
+              <section className="flex flex-col gap-3">
+                <SectionBanner accent="grape">Modo de cierre por fecha</SectionBanner>
+                <p className="-mt-1 text-xs text-muted-foreground">
+                  Cuándo se congelan los pronósticos de cada fecha. Definilo antes de abrirla.
+                </p>
+                <div className="ring-sticker overflow-hidden rounded-2xl border border-border bg-card">
+                  {rounds.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center gap-2 border-b border-border px-3 py-2.5 last:border-b-0"
+                    >
+                      <span className="flex flex-1 items-center gap-1.5 truncate text-sm font-bold">
+                        {r.is_open && (
+                          <HugeiconsIcon
+                            icon={SquareLock02Icon}
+                            size={12}
+                            strokeWidth={2}
+                            className="shrink-0 text-muted-foreground"
+                          />
+                        )}
+                        {r.label}
+                      </span>
+                      {(["per_match", "per_matchday"] as const).map((mode) => {
+                        const active = r.lock_mode === mode;
+                        const text = mode === "per_match" ? "Partido" : "Fecha";
+                        const klass = cn(
+                          "rounded-lg px-2.5 py-1 text-xs font-bold transition-colors",
+                          active ? "bg-grape text-white" : "bg-white/8 text-muted-foreground",
+                          r.is_open && !active && "opacity-40",
+                        );
+                        return r.is_open || active ? (
+                          <div key={mode} className={klass}>
+                            {text}
+                          </div>
+                        ) : (
+                          <ConfirmSubmit
+                            key={mode}
+                            action={setRoundLockMode}
+                            fields={{ roundId: String(r.id), mode }}
+                            title={`${r.label}: ¿cerrar por ${text.toLowerCase()}?`}
+                            description={
+                              mode === "per_match"
+                                ? "Cada partido se cierra en su propio kickoff."
+                                : "Toda la fecha se cierra cuando arranca el primer partido."
+                            }
+                            confirmLabel="Cambiar"
+                            className={klass}
+                          >
+                            {text}
+                          </ConfirmSubmit>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Eliminatorias */}
+              <section className="flex flex-col gap-3">
+                <SectionBanner accent="azure">Eliminatorias</SectionBanner>
+                {knockoutFrozen && (
+                  <p className="-mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <HugeiconsIcon icon={SquareLock02Icon} size={12} strokeWidth={2} />
+                    Las eliminatorias ya arrancaron: el puntaje queda fijo.
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  {[false, true].map((on) => {
+                    const active = knockoutBonus === on;
+                    const label = on ? "+1 por avanzar" : "Solo marcador";
+                    const sub = on ? "Punto extra por acertar quién pasa" : "Penales no cuentan (recomendado)";
+                    const klass = cn(
+                      "w-full rounded-xl border px-3 py-3 text-center transition-colors",
+                      active
+                        ? "border-azure bg-azure/15 text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:bg-white/5",
+                      knockoutFrozen && !active && "opacity-40",
+                    );
+                    const inner = (
+                      <>
+                        <div className="font-display text-base">{label}</div>
+                        <div className="mt-0.5 text-[11px] leading-tight">{sub}</div>
+                      </>
+                    );
+                    return knockoutFrozen || active ? (
+                      <div key={String(on)} className={klass}>
+                        {inner}
+                      </div>
+                    ) : (
+                      <ConfirmSubmit
+                        key={String(on)}
+                        action={setKnockoutBonus}
+                        fields={{ on: String(on) }}
+                        title={on ? "¿Activar +1 por avanzar?" : "¿Volver a solo marcador?"}
+                        description={
+                          on
+                            ? "Suma 1 punto extra por acertar quién clasifica. Defínelo antes de que arranquen las eliminatorias."
+                            : "Vuelve a contar solo el marcador. Los penales no suman puntos."
+                        }
+                        confirmLabel="Cambiar"
+                        className={klass}
+                      >
+                        {inner}
+                      </ConfirmSubmit>
+                    );
+                  })}
+                </div>
+              </section>
+            </>
+          )}
+          </div>
+        </ScrollArea>
+      )}
+
+      {/* Marcadores: cabecera fija + scroll SOLO en la lista de partidos */}
+      {tab === "marcadores" && (
+        <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col px-4 pb-4 pt-2">
+          <SectionBanner accent="gold" right={scoreRound?.label}>
+            Corregir marcador
+          </SectionBanner>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Solo si necesitas corregir o cargar un marcador a mano.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <HugeiconsIcon icon={Edit02Icon} size={13} strokeWidth={2.5} className="text-gold" />
+              Editar
+            </span>
+            <span className="flex items-center gap-1.5">
+              <HugeiconsIcon icon={EraserIcon} size={13} strokeWidth={2} />
+              Borrar el cargado a mano
+            </span>
+          </div>
+          <HScroll className="-mx-4 mt-3">
+            <div className="flex gap-2 px-4">
+              {rounds.map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/admin?t=marcadores&ronda=${r.key}`}
+                  scroll={false}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide",
+                    r.id === scoreRound?.id ? "bg-gold text-black" : "bg-white/8 text-muted-foreground",
+                  )}
+                >
+                  {r.label}
+                </Link>
+              ))}
+            </div>
+          </HScroll>
+          <ScrollArea className="mt-3 min-h-0 flex-1">
+            <div className="flex flex-col gap-2 pb-2">
+              {matches.map((m) => (
+                <ScoreEditor
+                  key={m.id}
+                  id={m.id}
+                  home={m.home}
+                  away={m.away}
+                  homeScore={m.homeScore}
+                  awayScore={m.awayScore}
+                  isKnockout={m.stage !== "group"}
+                  advancer={m.advancer}
+                />
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+    </div>
+  );
+}
