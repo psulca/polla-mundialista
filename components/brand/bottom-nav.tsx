@@ -23,8 +23,8 @@ const ADMIN_ITEM = { href: "/admin", label: "Admin", icon: Settings01Icon };
 
 export function BottomNav({ isAdmin }: { isAdmin?: boolean }) {
   const path = usePathname();
-  if (path === "/login") return null;
-
+  // En /login la barra se mantiene: si entraste sin querer (ej. tocaste "Predecir"
+  // sin estar logueado), tenés que poder volver a Inicio/Visor/Ranking sin loguearte.
   const items = isAdmin ? [...ITEMS, ADMIN_ITEM] : ITEMS;
 
   return (

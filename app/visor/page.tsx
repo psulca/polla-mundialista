@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import {
   getRounds,
@@ -30,47 +31,11 @@ export default async function VisorPage({
 }: {
   searchParams: Promise<{ ronda?: string }>;
 }) {
+  // Solo las fechas (rápido) → las pastillas y el header salen al instante.
   const rounds = await getRounds();
   const { ronda } = await searchParams;
   const current = rounds.find((r) => r.key === ronda) ?? rounds[0];
   const player = await getCurrentPlayer();
-
-  const [matches, myPreds] = await Promise.all([
-    current ? getMatchesForRound(current.id) : Promise.resolve<VisorMatch[]>([]),
-    player ? getPlayerPredictions(player.id) : Promise.resolve(new Map()),
-  ]);
-
-  const isGroupStage = matches.some((m) => m.groupLetter);
-  const groups = new Map<string, VisorMatch[]>();
-  for (const m of matches) {
-    const key = m.groupLetter ?? "—";
-    (groups.get(key) ?? groups.set(key, []).get(key)!).push(m);
-  }
-  const groupLetters = [...groups.keys()].filter((k) => k !== "—").sort();
-  const searchTeam = (t: VisorMatch["home"], matchId: number) => {
-    const es = (t.flag && COUNTRY_ES[t.flag]) || "";
-    return {
-      // Mostramos nombre en español si lo hay; si no, el de la BD (inglés).
-      label: `${es.split("|")[0] || t.name} (${t.code})`,
-      matchId,
-      // Buscable en ambos idiomas + código (la normalización de tildes va en el componente).
-      keywords: `${t.name} ${t.code} ${es.replace(/\|/g, " ")}`,
-    };
-  };
-  const searchTeams = matches.flatMap((m) => [
-    searchTeam(m.home, m.id),
-    searchTeam(m.away, m.id),
-  ]);
-
-  function predFor(m: VisorMatch) {
-    const p = myPreds.get(m.id);
-    if (!p) return undefined;
-    const finished = m.status === "finished" && m.homeScore != null && m.awayScore != null;
-    const kind: HitKind | undefined = finished
-      ? classify({ home: p.home, away: p.away }, { home: m.homeScore!, away: m.awayScore! })
-      : undefined;
-    return { home: p.home, away: p.away, kind };
-  }
 
   const header = (
     <>
@@ -93,23 +58,84 @@ export default async function VisorPage({
           ))}
         </div>
       </HScroll>
-      {matches.length > 0 && (
-        <div className="mt-3">
-          <TeamSearch teams={searchTeams} />
-        </div>
-      )}
-      {isGroupStage && <GroupJump groups={groupLetters} />}
     </>
   );
 
   return (
     <Screen header={header}>
       <RealtimeRefresh />
-      {matches.length === 0 && (
-        <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-          Todavía no hay partidos en esta ronda.
-        </p>
-      )}
+      {/* Los partidos cargan en su propio contenedor: al cambiar de fecha se ve un
+          esqueleto acá, no se congela toda la página (key fuerza el fallback). */}
+      <Suspense key={current?.id ?? "none"} fallback={<MatchesSkeleton />}>
+        <RoundContent
+          roundId={current?.id ?? null}
+          roundLabel={current?.label}
+          playerId={player?.id ?? null}
+        />
+      </Suspense>
+    </Screen>
+  );
+}
+
+async function RoundContent({
+  roundId,
+  roundLabel,
+  playerId,
+}: {
+  roundId: number | null;
+  roundLabel?: string;
+  playerId: string | null;
+}) {
+  const [matches, myPreds] = await Promise.all([
+    roundId ? getMatchesForRound(roundId) : Promise.resolve<VisorMatch[]>([]),
+    playerId ? getPlayerPredictions(playerId) : Promise.resolve(new Map()),
+  ]);
+
+  if (matches.length === 0) {
+    return (
+      <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+        Todavía no hay partidos en esta ronda.
+      </p>
+    );
+  }
+
+  const isGroupStage = matches.some((m) => m.groupLetter);
+  const groups = new Map<string, VisorMatch[]>();
+  for (const m of matches) {
+    const key = m.groupLetter ?? "—";
+    (groups.get(key) ?? groups.set(key, []).get(key)!).push(m);
+  }
+  const groupLetters = [...groups.keys()].filter((k) => k !== "—").sort();
+
+  const searchTeam = (t: VisorMatch["home"], matchId: number) => {
+    const es = (t.flag && COUNTRY_ES[t.flag]) || "";
+    return {
+      label: `${es.split("|")[0] || t.name} (${t.code})`,
+      matchId,
+      keywords: `${t.name} ${t.code} ${es.replace(/\|/g, " ")}`,
+    };
+  };
+  const searchTeams = matches.flatMap((m) => [
+    searchTeam(m.home, m.id),
+    searchTeam(m.away, m.id),
+  ]);
+
+  function predFor(m: VisorMatch) {
+    const p = myPreds.get(m.id);
+    if (!p) return undefined;
+    const finished = m.status === "finished" && m.homeScore != null && m.awayScore != null;
+    const kind: HitKind | undefined = finished
+      ? classify({ home: p.home, away: p.away }, { home: m.homeScore!, away: m.awayScore! })
+      : undefined;
+    return { home: p.home, away: p.away, kind };
+  }
+
+  return (
+    <>
+      <div className="mb-3">
+        <TeamSearch teams={searchTeams} />
+      </div>
+      {isGroupStage && <GroupJump groups={groupLetters} />}
 
       {isGroupStage ? (
         <div className="flex flex-col gap-5">
@@ -150,13 +176,27 @@ export default async function VisorPage({
                 homeScore={m.homeScore}
                 awayScore={m.awayScore}
                 kickoff={fmtKickoff(m.kickoffAt)}
-                roundLabel={current?.label}
+                roundLabel={roundLabel}
                 prediction={predFor(m)}
               />
             </Link>
           ))}
         </div>
       )}
-    </Screen>
+    </>
+  );
+}
+
+function MatchesSkeleton() {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="mb-1 h-10 animate-pulse rounded-full bg-white/8" />
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-22 animate-pulse rounded-2xl border border-border bg-card"
+        />
+      ))}
+    </div>
   );
 }
