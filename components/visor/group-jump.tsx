@@ -3,7 +3,7 @@
 export function GroupJump({ groups }: { groups: string[] }) {
   if (groups.length === 0) return null;
   return (
-    <div className="mt-2 flex flex-wrap gap-1">
+    <div className="my-2 flex flex-wrap gap-1">
       {groups.map((g) => (
         <button
           key={g}
