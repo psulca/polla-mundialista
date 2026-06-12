@@ -15,6 +15,10 @@ type Key =
   | "live"
   | "hero"
   | "grid"
+  | "pozo"
+  | "proximo"
+  | "countdown"
+  | "flags"
   | "top3"
   | "shadow"
   | "gradient"
@@ -22,7 +26,17 @@ type Key =
   | "bg"
   | "glow";
 
-const SECTIONS: Key[] = ["header", "live", "hero", "grid", "top3"];
+const SECTIONS: Key[] = [
+  "header",
+  "live",
+  "hero",
+  "grid",
+  "pozo",
+  "proximo",
+  "countdown",
+  "flags",
+  "top3",
+];
 const ALL: Key[] = [...SECTIONS, "shadow", "gradient", "overflow", "bg", "glow"];
 
 function applyToggle(key: Key, isOff: boolean) {

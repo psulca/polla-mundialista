@@ -191,7 +191,10 @@ export default async function Home() {
         data-diag="grid"
         className={cn("mt-4 grid gap-3", next ? "grid-cols-2" : "grid-cols-1")}
       >
-        <div className="flex flex-col justify-between rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3.5">
+        <div
+          data-diag="pozo"
+          className="flex flex-col justify-between rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3.5"
+        >
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <HugeiconsIcon
               icon={Coins01Icon}
@@ -213,15 +216,16 @@ export default async function Home() {
         {next && (
           <Link
             href={`/visor/${next.id}`}
+            data-diag="proximo"
             className="flex flex-col justify-between rounded-2xl border border-azure/30 bg-azure/10 px-4 py-3.5"
           >
             <span className="text-xs text-muted-foreground">
               Próximo partido
             </span>
-            <span className="font-display mt-1 text-xl leading-none text-azure">
+            <span data-diag="countdown" className="font-display mt-1 text-xl leading-none text-azure">
               <Countdown target={next.kickoffAt} />
             </span>
-            <div className="mt-2 flex items-center gap-1.5 text-sm">
+            <div data-diag="flags" className="mt-2 flex items-center gap-1.5 text-sm">
               <Flag code={next.home.flag} className="text-sm" />
               <span className="font-display">{next.home.code}</span>
               <span className="text-[11px] text-muted-foreground">vs</span>
