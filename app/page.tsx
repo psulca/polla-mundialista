@@ -17,7 +17,6 @@ import {
 } from "@hugeicons/core-free-icons";
 import { fmtKickoff } from "@/lib/format";
 import { ENTRY_FEE } from "@/lib/data/entries";
-import { DiagBar } from "@/components/brand/diag-bar";
 import { cn } from "@/lib/utils";
 
 export default async function Home() {
@@ -60,8 +59,7 @@ export default async function Home() {
   return (
     <Screen>
       <RealtimeRefresh />
-      <DiagBar />
-      <header data-diag="header">
+      <header>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-magenta px-3 py-1 text-[11px] font-extrabold uppercase tracking-widest text-white">
           <HugeiconsIcon icon={FootballIcon} size={13} strokeWidth={2.5} />{" "}
           Mundial 2026
@@ -95,7 +93,7 @@ export default async function Home() {
 
       {/* En vivo ahora — máxima prioridad, va arriba */}
       {live.length > 0 && (
-        <section className="mt-6" data-diag="live">
+        <section className="mt-6">
           <h2 className="font-display flex items-center gap-2 text-xl">
             <span className="relative flex size-2.5">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive opacity-75" />
@@ -121,10 +119,7 @@ export default async function Home() {
       )}
 
       {/* HÉROE: la fecha activa es la acción principal */}
-      <section
-        data-diag="hero"
-        className="ring-sticker mt-6 overflow-hidden rounded-3xl border border-neon/30 bg-linear-to-b from-neon/12 to-card"
-      >
+      <section className="ring-sticker mt-6 overflow-hidden rounded-3xl border border-neon/30 bg-linear-to-b from-neon/12 to-card">
         <div className="h-1.5 w-full bg-neon" />
         <div className="px-5 py-5">
           <div className="flex items-start justify-between">
@@ -187,14 +182,8 @@ export default async function Home() {
       </section>
 
       {/* Datos compactos: pozo + próximo partido, lado a lado */}
-      <div
-        data-diag="grid"
-        className={cn("mt-4 grid gap-3", next ? "grid-cols-2" : "grid-cols-1")}
-      >
-        <div
-          data-diag="pozo"
-          className="flex flex-col justify-between rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3.5"
-        >
+      <div className={cn("mt-4 grid gap-3", next ? "grid-cols-2" : "grid-cols-1")}>
+        <div className="flex flex-col justify-between rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3.5">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <HugeiconsIcon
               icon={Coins01Icon}
@@ -216,16 +205,15 @@ export default async function Home() {
         {next && (
           <Link
             href={`/visor/${next.id}`}
-            data-diag="proximo"
             className="flex flex-col justify-between rounded-2xl border border-azure/30 bg-azure/10 px-4 py-3.5"
           >
             <span className="text-xs text-muted-foreground">
               Próximo partido
             </span>
-            <span data-diag="countdown" className="font-display mt-1 text-xl leading-none text-azure">
+            <span className="font-display mt-1 text-xl leading-none text-azure">
               <Countdown target={next.kickoffAt} />
             </span>
-            <div data-diag="flags" className="mt-2 flex items-center gap-1.5 text-sm">
+            <div className="mt-2 flex items-center gap-1.5 text-sm">
               <Flag code={next.home.flag} className="text-sm" />
               <span className="font-display">{next.home.code}</span>
               <span className="text-[11px] text-muted-foreground">vs</span>
@@ -240,7 +228,7 @@ export default async function Home() {
       </div>
 
       {/* Top 3 */}
-      <section className="mt-6" data-diag="top3">
+      <section className="mt-6">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-display text-xl">Top 3</h2>
           <Link
