@@ -111,7 +111,7 @@ export default async function Home() {
       )}
 
       {/* HÉROE: la fecha activa es la acción principal */}
-      <section className="ring-sticker mt-6 overflow-hidden rounded-3xl border border-neon/30 bg-linear-to-b from-neon/12 to-card">
+      <section className="ring-sticker mt-6 overflow-hidden rounded-3xl border border-neon/30 bg-[#0f1d1f]">
         <div className="h-1.5 w-full bg-neon" />
         <div className="px-5 py-5">
           <div className="flex items-start justify-between">
