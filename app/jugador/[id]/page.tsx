@@ -42,7 +42,11 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
       ) : (
         <div className="flex flex-col gap-2.5">
           {profile.rows.map((r) => {
-            const played = r.status !== "scheduled" && r.homeScore != null && r.awayScore != null;
+            // Defensa: en vivo, un marcador que el sync aún no persistió se muestra
+            // como 0-0 (el partido ya arrancó). Programados/finalizados conservan el "VS".
+            const homeScore = r.status === "live" ? r.homeScore ?? 0 : r.homeScore;
+            const awayScore = r.status === "live" ? r.awayScore ?? 0 : r.awayScore;
+            const played = r.status !== "scheduled" && homeScore != null && awayScore != null;
             return (
               <Link
                 key={r.matchId}
@@ -64,7 +68,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
                   <div className="font-display tnum text-2xl leading-none">
                     {played ? (
                       <>
-                        {r.homeScore} <span className="text-muted-foreground/40">:</span> {r.awayScore}
+                        {homeScore} <span className="text-muted-foreground/40">:</span> {awayScore}
                       </>
                     ) : (
                       <span className="text-base text-muted-foreground">VS</span>

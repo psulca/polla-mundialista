@@ -1,17 +1,19 @@
 name: cron
 
-# Reemplaza a los crons de Vercel (el plan Hobby solo permite crons diarios).
-# Llama a los endpoints protegidos con el header Authorization: Bearer <CRON_SECRET>.
+# ⚠️ BACKUP MANUAL — el cron oficial vive en Supabase pg_cron:
+#   'polla-sync'      → */10 * * * *  (cada 10 min, llama a /api/sync)
+#   'polla-reconcile' → 0 11 * * *    (diario 11:00 UTC, llama a /api/reconcile)
+# Ambos jobs llaman a https://polla-mundialista-peru.vercel.app con Bearer desde el Vault.
+#
+# GitHub Actions demostró ser no confiable para schedules (saltos de hasta 3 horas),
+# así que este workflow queda SOLO como disparo manual de emergencia (workflow_dispatch).
 #
 # Secretos que hay que cargar en el repo (Settings > Secrets and variables > Actions):
 #   APP_URL      → la URL de producción en Vercel, SIN barra final
 #                  (ej: https://polla-mundialista.vercel.app)
 #   CRON_SECRET  → el mismo valor que pusiste en las env vars de Vercel
 on:
-  schedule:
-    - cron: "*/6 * * * *" # sync de marcadores en vivo (cada ~6 min)
-    - cron: "0 11 * * *" # reconcile diario (corrige horarios + finales)
-  workflow_dispatch: {} # permite dispararlo a mano desde la pestaña Actions
+  workflow_dispatch: {} # disparo manual desde la pestaña Actions
 
 # Evita solapamientos si una corrida tarda más que el intervalo.
 concurrency:
@@ -20,7 +22,7 @@ concurrency:
 
 jobs:
   sync:
-    if: github.event.schedule == '*/6 * * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger /api/sync
@@ -33,7 +35,7 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
 
   reconcile:
-    if: github.event.schedule == '0 11 * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger /api/reconcile

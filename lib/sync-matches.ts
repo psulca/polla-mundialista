@@ -162,10 +162,12 @@ async function applyFixtures(
         patch.source = "api";
         patch.advancer =
           f.ft.home === f.ft.away ? (f.homeWinner ? "home" : f.awayWinner ? "away" : null) : null;
-      } else if (status === "live" && f.goals.home != null && f.goals.away != null) {
+      } else if (status === "live") {
         // En vivo → marcador actual (solo para mostrar; los puntos se calculan al terminar).
-        patch.home_score = f.goals.home;
-        patch.away_score = f.goals.away;
+        // Apenas arranca, la API puede traer goals en null: lo tratamos como 0-0 para
+        // que el visor no siga mostrando guiones con el partido ya en juego.
+        patch.home_score = f.goals.home ?? 0;
+        patch.away_score = f.goals.away ?? 0;
         patch.source = "api";
       }
     }

@@ -39,7 +39,11 @@ export default async function MatchDetailPage({
   const d = await getMatchDetail(id, player?.id ?? null);
   if (!d) redirect("/");
 
-  const played = d.status !== "scheduled" && d.homeScore != null && d.awayScore != null;
+  // Defensa: en vivo, un marcador que el sync aún no persistió se muestra como 0-0
+  // (el partido ya arrancó). Programados y finalizados conservan el "VS".
+  const homeScore = d.status === "live" ? d.homeScore ?? 0 : d.homeScore;
+  const awayScore = d.status === "live" ? d.awayScore ?? 0 : d.awayScore;
+  const played = d.status !== "scheduled" && homeScore != null && awayScore != null;
 
   return (
     <div className="flex h-full flex-col">
@@ -58,7 +62,7 @@ export default async function MatchDetailPage({
           <div className="font-display tnum text-4xl leading-none">
             {played ? (
               <>
-                {d.homeScore} <span className="text-muted-foreground/40">:</span> {d.awayScore}
+                {homeScore} <span className="text-muted-foreground/40">:</span> {awayScore}
               </>
             ) : (
               <span className="text-2xl text-muted-foreground">VS</span>

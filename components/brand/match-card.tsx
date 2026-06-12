@@ -87,13 +87,18 @@ export function MatchCard({
   prediction,
   className,
 }: MatchCardProps) {
-  const played = status !== "scheduled" && homeScore != null && awayScore != null;
-  const finished = status === "finished" && homeScore != null && awayScore != null;
+  // Defensa: en vivo, un marcador que el sync aún no persistió se muestra como 0-0
+  // (el partido ya arrancó). Programados y finalizados conservan los guiones.
+  const shownHome = status === "live" ? homeScore ?? 0 : homeScore;
+  const shownAway = status === "live" ? awayScore ?? 0 : awayScore;
+
+  const played = status !== "scheduled" && shownHome != null && shownAway != null;
+  const finished = status === "finished" && shownHome != null && shownAway != null;
 
   let homeState: SideState = "neutral";
   let awayState: SideState = "neutral";
-  if (finished && homeScore! !== awayScore!) {
-    const homeWon = homeScore! > awayScore!;
+  if (finished && shownHome! !== shownAway!) {
+    const homeWon = shownHome! > shownAway!;
     homeState = homeWon ? "win" : "lose";
     awayState = homeWon ? "lose" : "win";
   }
@@ -127,9 +132,9 @@ export function MatchCard({
       <div className="flex items-center gap-3 px-4 py-4">
         <TeamSide team={home} align="left" state={homeState} />
         <div className="font-display tnum flex shrink-0 items-center gap-2 text-4xl leading-none">
-          <span className={scoreClass(homeState)}>{played ? homeScore : "–"}</span>
+          <span className={scoreClass(homeState)}>{played ? shownHome : "–"}</span>
           <span className="text-muted-foreground/50">:</span>
-          <span className={scoreClass(awayState)}>{played ? awayScore : "–"}</span>
+          <span className={scoreClass(awayState)}>{played ? shownAway : "–"}</span>
         </div>
         <TeamSide team={away} align="right" state={awayState} />
       </div>
