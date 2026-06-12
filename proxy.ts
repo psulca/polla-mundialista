@@ -19,5 +19,5 @@ export default function proxy(req: NextRequest) {
 
 export const config = {
   // Corre en todo menos assets, api e imágenes.
-  matcher: ["/((?!api|_next/static|_next/image|icon.svg|manifest.webmanifest|favicon.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|icon.png|apple-icon.png|manifest.webmanifest).*)"],
 };
