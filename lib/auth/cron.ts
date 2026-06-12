@@ -5,10 +5,9 @@ import type { NextRequest } from "next/server";
 /**
  * Autoriza una llamada a un endpoint de cron.
  *
- * Mecanismo oficial de Vercel Cron: si existe una env var llamada CRON_SECRET,
- * Vercel la manda SOLO en las invocaciones de cron como `Authorization: Bearer <CRON_SECRET>`.
- * A diferencia del user-agent, ese header NO se puede falsificar desde afuera.
- * Doc: https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs
+ * El scheduler (GitHub Actions en .github/workflows/cron.yml, o Vercel Cron en Pro)
+ * manda el header `Authorization: Bearer <CRON_SECRET>`. A diferencia del user-agent,
+ * ese header NO se puede falsificar desde afuera sin conocer el secreto.
  *
  * Fail-closed: si CRON_SECRET no está configurado, NADIE entra (devuelve false).
  */
