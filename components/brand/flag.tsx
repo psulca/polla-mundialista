@@ -24,22 +24,26 @@ export function Flag({
       <span
         aria-hidden
         className={cn(
-          "inline-block aspect-4/3 w-[1.333em] rounded-2px bg-white/10",
+          "inline-block h-[1em] w-[1.333em] shrink-0 rounded-tl-[5px] rounded-br-[5px] border-2 border-white bg-white/10",
           className,
         )}
       />
     );
   }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt=""
+    <span
       aria-hidden
       className={cn(
-        "inline-block h-[1em] w-[1.333em] shrink-0 rounded-2px object-cover shadow-[0_0_0_1px_rgba(0,0,0,0.25)]",
+        "inline-block h-[1em] w-[1.333em] shrink-0 overflow-hidden rounded-tl-[8px] rounded-br-[8px] border-2 border-white",
         className,
       )}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/flags/${code}.png`}
+        alt=""
+        className="h-full w-full object-cover"
+      />
+    </span>
   );
 }
