@@ -1,10 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  fetchWorldCupFixturesByDates,
-  mapStatus,
-  type ApiFixture,
-} from "@/lib/football-api";
+import { getScoreProvider, type ProviderFixture } from "@/lib/providers";
 
 export interface SyncResult {
   ok: boolean;
@@ -34,8 +30,8 @@ const MATCH_TOLERANCE_MS = 2 * DAY_MS;
 
 /** Normaliza un nombre de selección para emparejar (sin acentos ni símbolos). */
 const DIACRITICS = /[̀-ͯ]/g;
-function norm(name: string): string {
-  return name.normalize("NFD").replace(DIACRITICS, "").toLowerCase().replace(/[^a-z]/g, "");
+function norm(name: string | null | undefined): string {
+  return (name ?? "").normalize("NFD").replace(DIACRITICS, "").toLowerCase().replace(/[^a-z]/g, "");
 }
 
 /** Alias para nombres que difieren entre openfootball (BD) y API-Football (ya normalizados). */
@@ -46,6 +42,9 @@ const ALIAS: Record<string, string> = {
   czechia: "czechrepublic",
   cotedivoire: "ivorycoast",
   congodr: "drcongo",
+  // worldcup26.ir usa nombres largos; la BD (openfootball) usa formas cortas.
+  bosniaandherzegovina: "bosniaherzegovina",
+  democraticrepublicofthecongo: "drcongo",
   irra: "iran",
   turkiye: "turkey",
 };
@@ -73,6 +72,9 @@ interface DbMatch {
   home: string;
   away: string;
   kickoff_at: string;
+  home_score: number | null;
+  away_score: number | null;
+  advancer: string | null;
 }
 
 /** Carga los partidos de la BD con el nombre de cada equipo. */
@@ -80,7 +82,9 @@ async function loadDbMatches(db: ReturnType<typeof createAdminClient>): Promise<
   const [{ data: rows }, { data: teams }] = await Promise.all([
     db
       .from("matches")
-      .select("id, api_fixture_id, source, status, kickoff_at, home_team_id, away_team_id"),
+      .select(
+        "id, api_fixture_id, source, status, kickoff_at, home_team_id, away_team_id, home_score, away_score, advancer",
+      ),
     db.from("teams").select("id, name"),
   ]);
   const teamName = new Map<number, string>((teams ?? []).map((t) => [t.id, t.name ?? ""]));
@@ -92,6 +96,9 @@ async function loadDbMatches(db: ReturnType<typeof createAdminClient>): Promise<
     kickoff_at: r.kickoff_at,
     home: r.home_team_id ? teamName.get(r.home_team_id) ?? "" : "",
     away: r.away_team_id ? teamName.get(r.away_team_id) ?? "" : "",
+    home_score: r.home_score,
+    away_score: r.away_score,
+    advancer: r.advancer,
   }));
 }
 
@@ -102,7 +109,7 @@ async function loadDbMatches(db: ReturnType<typeof createAdminClient>): Promise<
  */
 async function applyFixtures(
   db: ReturnType<typeof createAdminClient>,
-  fixtures: ApiFixture[],
+  fixtures: ProviderFixture[],
   dbMatches: DbMatch[],
 ): Promise<{ matched: number; updated: number; unmatched: string[] }> {
   const byApiId = new Map<number, DbMatch>();
@@ -121,13 +128,16 @@ async function applyFixtures(
   let updated = 0;
 
   for (const f of fixtures) {
-    let match = byApiId.get(f.id) ?? null;
+    // Placeholders de eliminatoria (sin equipos definidos) → nada que emparejar.
+    if (!f.homeName || !f.awayName) continue;
+
+    let match = (f.providerId != null ? byApiId.get(f.providerId) : null) ?? null;
     if (!match) {
       // Par de equipos + kickoff más cercano dentro de la tolerancia.
       const cands = (byPair.get(pairKey(f.homeName, f.awayName)) ?? []).filter(
         (m) => !used.has(m.id),
       );
-      const apiMs = new Date(f.date).getTime();
+      const apiMs = new Date(f.matchAt).getTime();
       let best: DbMatch | null = null;
       let bestDiff = Infinity;
       for (const c of cands) {
@@ -141,34 +151,35 @@ async function applyFixtures(
     }
 
     if (!match) {
-      unmatched.push(`${f.homeName} vs ${f.awayName} (${day(new Date(f.date))})`);
+      unmatched.push(`${f.homeName} vs ${f.awayName} (${day(new Date(f.matchAt))})`);
       continue;
     }
     used.add(match.id);
     matched++;
 
+    // Solo escribimos lo que CAMBIÓ (worldcup26.ir trae los 104; evita writes al pedo).
     const patch: Record<string, unknown> = {};
-    if (match.kickoff_at !== f.date) patch.kickoff_at = f.date; // horario UTC real
-    if (!match.api_fixture_id) patch.api_fixture_id = f.id; // linkea para próximas syncs
+    if (f.kickoffAtUtc && match.kickoff_at !== f.kickoffAtUtc) patch.kickoff_at = f.kickoffAtUtc;
+    if (f.providerId != null && !match.api_fixture_id) patch.api_fixture_id = f.providerId;
 
     // Marcador/estado: NO pisamos un marcador corregido a mano por el admin.
     if (match.source !== "manual") {
-      const status = mapStatus(f.statusShort);
-      patch.status = status;
-      if (status === "finished" && f.ft.home != null && f.ft.away != null) {
+      if (f.status !== match.status) patch.status = f.status;
+      if (f.status === "finished" && f.ft.home != null && f.ft.away != null) {
         // Terminado → marcador de 90' (lo que cuenta para los puntos).
-        patch.home_score = f.ft.home;
-        patch.away_score = f.ft.away;
-        patch.source = "api";
-        patch.advancer =
+        const adv =
           f.ft.home === f.ft.away ? (f.homeWinner ? "home" : f.awayWinner ? "away" : null) : null;
-      } else if (status === "live") {
-        // En vivo → marcador actual (solo para mostrar; los puntos se calculan al terminar).
-        // Apenas arranca, la API puede traer goals en null: lo tratamos como 0-0 para
-        // que el visor no siga mostrando guiones con el partido ya en juego.
-        patch.home_score = f.goals.home ?? 0;
-        patch.away_score = f.goals.away ?? 0;
-        patch.source = "api";
+        if (match.home_score !== f.ft.home) patch.home_score = f.ft.home;
+        if (match.away_score !== f.ft.away) patch.away_score = f.ft.away;
+        if (match.advancer !== adv) patch.advancer = adv;
+        if (match.source !== "api") patch.source = "api";
+      } else if (f.status === "live") {
+        // En vivo → marcador actual (solo para mostrar). Si arranca en null, 0-0.
+        const h = f.goals.home ?? 0;
+        const a = f.goals.away ?? 0;
+        if (match.home_score !== h) patch.home_score = h;
+        if (match.away_score !== a) patch.away_score = a;
+        if (match.source !== "api") patch.source = "api";
       }
     }
 
@@ -238,13 +249,14 @@ async function runFetch(
   dbMatches: DbMatch[],
   dates: string[],
 ): Promise<SyncResult> {
-  let fixtures: ApiFixture[];
+  const provider = getScoreProvider();
+  let fixtures: ProviderFixture[];
   try {
-    fixtures = await fetchWorldCupFixturesByDates(dates);
+    fixtures = await provider.fetchFixtures(dates);
   } catch (e) {
     const error = e instanceof Error ? e.message : "Error al llamar a la API";
     // Queda en los logs de Vercel Functions para poder diagnosticar caídas/quota.
-    console.error("[sync] fallo al consultar API-Football:", error);
+    console.error(`[sync] proveedor "${provider.name}" falló:`, error);
     return { ok: false, updated: 0, matched: 0, total: 0, unmatched: [], error };
   }
 
