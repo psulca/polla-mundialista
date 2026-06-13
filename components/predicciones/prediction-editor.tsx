@@ -156,13 +156,8 @@ export function PredictionEditor({
             )
           )}
         </div>
-        {/*
-          Scoreboard: cada equipo es una columna con su control de marcador justo
-          debajo de la bandera. Se lee claro y sin huecos en cualquier ancho — la
-          app es mobile-first y el card es angosto, así que dos columnas balanceadas
-          quedan bien tanto en teléfono como en desktop.
-        */}
-        <div className="flex items-start gap-3 px-3 py-3.5">
+        {/* < 376px: scoreboard — cada equipo en columna con su control debajo */}
+        <div className="flex items-start gap-3 px-3 py-3.5 min-[450px]:hidden">
           <div className="flex flex-1 flex-col items-center gap-2.5">
             <div className="flex items-center gap-2">
               <Flag code={m.home.flag} className="text-2xl" />
@@ -177,9 +172,7 @@ export function PredictionEditor({
               <span
                 className={cn(
                   "font-display tnum text-3xl leading-none",
-                  p.home == null
-                    ? "text-muted-foreground/40"
-                    : "text-foreground",
+                  p.home == null ? "text-muted-foreground/40" : "text-foreground",
                 )}
               >
                 {p.home ?? "–"}
@@ -200,14 +193,47 @@ export function PredictionEditor({
               <span
                 className={cn(
                   "font-display tnum text-3xl leading-none",
-                  p.away == null
-                    ? "text-muted-foreground/40"
-                    : "text-foreground",
+                  p.away == null ? "text-muted-foreground/40" : "text-foreground",
                 )}
               >
                 {p.away ?? "–"}
               </span>
             )}
+          </div>
+        </div>
+
+        {/* ≥ 376px: layout original — fila única [equipo] [marcador] [equipo] */}
+        <div className="hidden items-center gap-2 px-3 py-3 min-[450px]:flex">
+          <div className="flex flex-1 items-center gap-2">
+            <Flag code={m.home.flag} className="text-2xl" />
+            <span className="font-display text-xl">{m.home.code}</span>
+          </div>
+          {editable ? (
+            <div className="flex shrink-0 items-center gap-1.5">
+              <ScoreStepper
+                value={p.home}
+                onChange={(v) => change(m.id, "home", v)}
+              />
+              <span className="text-muted-foreground/50">:</span>
+              <ScoreStepper
+                value={p.away}
+                onChange={(v) => change(m.id, "away", v)}
+              />
+            </div>
+          ) : (
+            <div className="font-display tnum flex shrink-0 items-center gap-2 text-3xl">
+              <span className={p.home == null ? "text-muted-foreground/40" : "text-foreground"}>
+                {p.home ?? "–"}
+              </span>
+              <span className="text-muted-foreground/40">:</span>
+              <span className={p.away == null ? "text-muted-foreground/40" : "text-foreground"}>
+                {p.away ?? "–"}
+              </span>
+            </div>
+          )}
+          <div className="flex flex-1 flex-row-reverse items-center gap-2">
+            <Flag code={m.away.flag} className="text-2xl" />
+            <span className="font-display text-xl">{m.away.code}</span>
           </div>
         </div>
       </div>
