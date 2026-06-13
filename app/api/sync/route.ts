@@ -3,11 +3,12 @@ import { syncMatches } from "@/lib/sync-matches";
 import { isAuthorizedCron } from "@/lib/auth/cron";
 
 /**
- * Endpoint que dispara la sincronización con API-Football.
- * Lo llama el cron (Vercel Cron) cada pocos minutos — NUNCA las páginas.
+ * Endpoint que dispara la sincronización de marcadores con el proveedor activo.
+ * Lo llama el cron (Supabase pg_cron) cada minuto — NUNCA las páginas. El gate
+ * interno hace que un minuto sin partido sea baratísimo (1 query, sin llamada).
  *
- * Seguridad: requiere el header `Authorization: Bearer <CRON_SECRET>` que Vercel
- * inyecta automáticamente en los crons. Sin CRON_SECRET, queda cerrado.
+ * Seguridad: requiere el header `Authorization: Bearer <CRON_SECRET>`. Sin
+ * CRON_SECRET, queda cerrado (fail-closed).
  */
 export const dynamic = "force-dynamic";
 

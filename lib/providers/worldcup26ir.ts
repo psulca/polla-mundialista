@@ -3,9 +3,14 @@ import type { ProviderFixture, ScoreProvider } from "./types";
 
 /**
  * Adaptador de worldcup26.ir — API free hecha para el Mundial 2026.
- * Una sola llamada (`/get/games`) trae los 104 partidos. Límite holgado (500/min),
- * sin cuota diaria. Los GET son públicos; si algún día exigen token, se pasa por
- * WORLDCUP26_TOKEN (válido 84 días, cubre todo el torneo).
+ * Una sola llamada (`/get/games`) trae los 104 partidos. Sin cuota diaria. Los GET
+ * son públicos (no requieren token ni registro).
+ *
+ * Por qué bulk y NO el endpoint por-partido (verificado contra la API real):
+ *  - `/get/game/{_id}` existe, pero pide el ObjectId de Mongo (no guardamos ese id,
+ *    providerId va null a propósito) y NO devuelve los *_name_en → rompe el matching
+ *    por nombre. `/get/games?id=` ignora el filtro. Y N partidos serían N requests.
+ *  - 1 request trae todo, con nombres, haya 1 o 6 en vivo. Imposible ser más eficiente.
  *
  * OJO: `local_date` viene en hora LOCAL de la sede SIN offset → no la usamos para
  * corregir el horario (kickoffAtUtc = null); el horario ya quedó bien del seed.

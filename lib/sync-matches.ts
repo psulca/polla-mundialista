@@ -15,13 +15,19 @@ export interface SyncResult {
 }
 
 // Ventana en la que un partido puede tener marcador nuevo.
-// El que un partido esté 'finished' lo SACA del gate, así que dejamos de pedir su
-// fecha apenas la API lo marca FT/AET/PEN. La ventana es el tope para el caso raro.
+// START: lo manda NUESTRO kickoff_at (lo sabemos del seed), no la API — no se puede
+//   "esperar a que la API diga notstarted→live" porque para leer eso ya habría que
+//   estar llamando. Arrancamos 6 min antes del kickoff.
+// STOP: lo manda la señal 'finished' de la API. Apenas la API marca FT/AET/PEN,
+//   escribimos status='finished' y la corrida siguiente SACA ese partido del gate.
+//   El tope de 2h45 es solo la red de seguridad por si la API nunca marca finished.
 const ACTIVE_BEFORE_MS = 6 * 60_000; // arranca a chequear 6 min antes del kickoff
 const ACTIVE_AFTER_MS = 165 * 60_000; // tope 2h45 (cubre 90'+alargue+penales+demoras)
 
-// Nunca llamamos a la API si ya llamamos hace menos de esto (protege la quota).
-const THROTTLE_MS = 60_000;
+// El cron corre cada minuto; este throttle solo evita un doble-fire (sync + reconcile,
+// o jitter del scheduler). worldcup26.ir no tiene cuota diaria, así que no hay quota
+// que proteger — por eso 30s, holgado para no bloquear una corrida legítima de 1 min.
+const THROTTLE_MS = 30_000;
 
 const DAY_MS = 24 * 3_600_000;
 // Tolerancia al emparejar par-de-equipos por fecha: absorbe el corrimiento de día
@@ -193,25 +199,41 @@ async function applyFixtures(
 }
 
 /**
- * Sync de marcadores en vivo (la corre el cron cada 6 min). Es la ÚNICA que llama
+ * Sync de marcadores en vivo (la corre el cron CADA MINUTO). Es la ÚNICA que llama
  * a la API junto con reconcile. Las páginas leen siempre de la BD.
  *
- * Cron inteligente: solo pide las fechas (UTC) de partidos en ventana activa. Si no
- * hay ninguno, no gasta llamada (`skipped`). `force` mira más adelante (24h).
+ * Cron inteligente en dos pasos:
+ *  1. Gate BARATO: un solo COUNT (sin traer filas) — ¿hay algún partido en ventana
+ *     activa y sin terminar? Si no, salimos sin tocar settings ni la API. Así un
+ *     minuto ocioso cuesta 1 query, no 3 ni una llamada externa.
+ *  2. Solo si hay partido activo: cargamos todo y sincronizamos.
+ * `force` mira más adelante (24h) para el reconcile manual del admin.
  */
 export async function syncMatches(force = false): Promise<SyncResult> {
   const db = createAdminClient();
   const nowMs = Date.now();
   const skip: SyncResult = { ok: true, updated: 0, matched: 0, total: 0, unmatched: [], skipped: true };
 
-  const { data: cfg } = await db.from("settings").select("last_sync_at").eq("id", 1).maybeSingle();
-  if (cfg?.last_sync_at && nowMs - new Date(cfg.last_sync_at).getTime() < THROTTLE_MS) return skip;
-
-  const dbMatches = await loadDbMatches(db);
-
   const aheadMs = force ? DAY_MS : ACTIVE_BEFORE_MS;
   const lo = nowMs - ACTIVE_AFTER_MS;
   const hi = nowMs + aheadMs;
+
+  // 1. Gate barato. status es NOT NULL default 'scheduled', así que neq('finished')
+  //    es seguro (no hay nulls que se escapen del filtro).
+  const { count } = await db
+    .from("matches")
+    .select("id", { count: "exact", head: true })
+    .neq("status", "finished")
+    .gte("kickoff_at", new Date(lo).toISOString())
+    .lte("kickoff_at", new Date(hi).toISOString());
+  if (!count) return skip;
+
+  // Throttle: evita doble-fire (sync + reconcile, o jitter del cron de 1 min).
+  const { data: cfg } = await db.from("settings").select("last_sync_at").eq("id", 1).maybeSingle();
+  if (cfg?.last_sync_at && nowMs - new Date(cfg.last_sync_at).getTime() < THROTTLE_MS) return skip;
+
+  // 2. Hay partido activo → cargar todo y sincronizar.
+  const dbMatches = await loadDbMatches(db);
   const dates = new Set<string>();
   for (const m of dbMatches) {
     if (m.status === "finished") continue;

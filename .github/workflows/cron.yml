@@ -1,7 +1,8 @@
 name: cron
 
 # ⚠️ BACKUP MANUAL — el cron oficial vive en Supabase pg_cron:
-#   'polla-sync'      → */10 * * * *  (cada 10 min, llama a /api/sync)
+#   'polla-sync'      → * * * * *     (cada minuto, llama a /api/sync; gate interno
+#                                       hace barato el minuto sin partido: 1 query)
 #   'polla-reconcile' → 0 11 * * *    (diario 11:00 UTC, llama a /api/reconcile)
 # Ambos jobs llaman a https://polla-mundialista-peru.vercel.app con Bearer desde el Vault.
 #
