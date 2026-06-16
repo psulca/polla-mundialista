@@ -34,7 +34,7 @@ export function Flag({
     <span
       aria-hidden
       className={cn(
-        "inline-block h-[1em] w-[1.333em] shrink-0 overflow-hidden rounded-tl-[8px] rounded-br-[8px] border-2 border-white",
+        "inline-block h-[1em] w-[1.333em] shrink-0 rounded-tl-[8px] rounded-br-[8px] border-2 border-white",
         className,
       )}
     >
@@ -42,7 +42,7 @@ export function Flag({
       <img
         src={`/flags/${code}.png`}
         alt=""
-        className="h-full w-full object-cover"
+        className="h-full w-full rounded-tl-[6px] rounded-br-[6px] object-cover"
       />
     </span>
   );
