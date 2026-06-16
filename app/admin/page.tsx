@@ -378,7 +378,7 @@ async function AdminContent({
             </div>
           </HScroll>
           <MaliDebug>
-            <ScrollArea data-scroll-list className="mt-3 min-h-0 flex-1">
+            <ScrollArea data-scroll-list className="min-h-0 flex-1">
               <Suspense key={scoreRound?.id ?? "none"} fallback={<ScoreSkeleton />}>
                 <MarcadoresList roundId={scoreRound?.id ?? null} />
               </Suspense>
