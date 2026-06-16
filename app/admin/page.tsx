@@ -13,6 +13,7 @@ import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Edit02Icon, EraserIcon, SquareLock02Icon, Coins01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { approvePlayer, toggleRound, setRoundLockMode, setKnockoutBonus, toggleEntry } from "./actions";
+import { MaliDebug } from "@/components/admin/mali-debug";
 import { fmtPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -376,11 +377,13 @@ async function AdminContent({
               ))}
             </div>
           </HScroll>
-          <ScrollArea className="mt-3 min-h-0 flex-1">
-            <Suspense key={scoreRound?.id ?? "none"} fallback={<ScoreSkeleton />}>
-              <MarcadoresList roundId={scoreRound?.id ?? null} />
-            </Suspense>
-          </ScrollArea>
+          <MaliDebug>
+            <ScrollArea data-scroll-list className="mt-3 min-h-0 flex-1">
+              <Suspense key={scoreRound?.id ?? "none"} fallback={<ScoreSkeleton />}>
+                <MarcadoresList roundId={scoreRound?.id ?? null} />
+              </Suspense>
+            </ScrollArea>
+          </MaliDebug>
         </div>
       )}
     </>

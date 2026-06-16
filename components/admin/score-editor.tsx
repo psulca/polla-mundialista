@@ -162,7 +162,7 @@ export function ScoreEditor({
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+    <div data-score-row className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
       <span className="flex flex-1 items-center justify-end gap-1.5 text-right">
         <span className="font-display text-sm">{home.code}</span>
         <Flag code={home.flag} className="text-base" />
