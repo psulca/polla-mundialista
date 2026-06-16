@@ -16,11 +16,7 @@ import { approvePlayer, toggleRound, setRoundLockMode, setKnockoutBonus, toggleE
 import { fmtPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TABS = [
-  { key: "jugadores", label: "Jugadores" },
-  { key: "fechas", label: "Fechas" },
-  { key: "marcadores", label: "Marcadores" },
-] as const;
+const TABS = ["jugadores", "fechas", "marcadores"] as const;
 
 export default async function AdminPage({
   searchParams,
@@ -31,7 +27,7 @@ export default async function AdminPage({
 
   const db = createAdminClient();
   const { t, ronda, pago } = await searchParams;
-  const tab = TABS.some((x) => x.key === t) ? (t as (typeof TABS)[number]["key"]) : "jugadores";
+  const tab = TABS.includes(t as (typeof TABS)[number]) ? (t as (typeof TABS)[number]) : "jugadores";
 
   const [{ data: pending }, { data: approved }, rounds, { data: settings }] = await Promise.all([
     db.from("players").select("id, display_name, phone").eq("status", "pending").order("created_at"),
@@ -58,25 +54,7 @@ export default async function AdminPage({
   const knockoutFrozen = (koStarted ?? 0) > 0;
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header fijo: solo las pestañas (sin título, para no comer espacio) */}
-      <div className="mx-auto w-full max-w-md shrink-0 px-4 pb-3 pt-5">
-        <nav className="grid grid-cols-3 gap-2">
-          {TABS.map((x) => (
-            <Link
-              key={x.key}
-              href={`/admin?t=${x.key}`}
-              className={cn(
-                "rounded-xl py-2.5 text-center text-sm font-bold uppercase tracking-wide transition-colors",
-                x.key === tab ? "bg-neon text-black" : "bg-white/8 text-muted-foreground hover:bg-white/12",
-              )}
-            >
-              {x.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-
+    <>
       {/* Jugadores y Fechas: la página entera scrollea (un solo scroll) */}
       {tab !== "marcadores" && (
         <ScrollArea className="min-h-0 flex-1">
@@ -389,7 +367,7 @@ export default async function AdminPage({
           </ScrollArea>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
