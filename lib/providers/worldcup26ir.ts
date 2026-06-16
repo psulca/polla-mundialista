@@ -51,20 +51,30 @@ function parseMatchAt(local: string): string {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}:00Z`;
 }
 
+function liveMinuteOf(g: RawGame, status: "scheduled" | "live" | "finished"): string | null {
+  if (status !== "live") return null;
+  const t = (g.time_elapsed ?? "").trim().toUpperCase();
+  if (t === "HT") return "HT";
+  const n = parseInt(t, 10);
+  return Number.isFinite(n) ? String(n) : null;
+}
+
 function toFixture(g: RawGame): ProviderFixture {
   const home = num(g.home_score);
   const away = num(g.away_score);
+  const status = statusOf(g);
   return {
     providerId: null, // no usamos su id para no chocar con el namespace de api-football
     matchAt: parseMatchAt(g.local_date),
     kickoffAtUtc: null, // local sin offset → no pisamos el horario (ya correcto)
-    status: statusOf(g),
+    status,
     homeName: g.home_team_name_en ?? "", // eliminatorias sin definir vienen sin nombre
     awayName: g.away_team_name_en ?? "",
     goals: { home, away },
     ft: { home, away },
     homeWinner: null, // no expone ganador → advancer de empates va a mano
     awayWinner: null,
+    liveMinute: liveMinuteOf(g, status),
   };
 }
 

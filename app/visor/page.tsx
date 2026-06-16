@@ -156,6 +156,7 @@ async function RoundContent({
                       homeScore={m.homeScore}
                       awayScore={m.awayScore}
                       kickoff={fmtKickoff(m.kickoffAt)}
+                      liveMinute={m.liveMinute}
                       prediction={predFor(m)}
                     />
                   </Link>
@@ -176,6 +177,7 @@ async function RoundContent({
                 homeScore={m.homeScore}
                 awayScore={m.awayScore}
                 kickoff={fmtKickoff(m.kickoffAt)}
+                liveMinute={m.liveMinute}
                 roundLabel={roundLabel}
                 prediction={predFor(m)}
               />

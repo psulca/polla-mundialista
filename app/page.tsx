@@ -111,6 +111,7 @@ export default async function Home() {
                   away={m.away}
                   homeScore={m.homeScore}
                   awayScore={m.awayScore}
+                  liveMinute={m.liveMinute}
                 />
               </Link>
             ))}

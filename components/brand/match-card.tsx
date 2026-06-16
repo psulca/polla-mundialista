@@ -36,6 +36,7 @@ export interface MatchCardProps {
   homeScore?: number | null;
   awayScore?: number | null;
   kickoff?: string;
+  liveMinute?: string | null;
   roundLabel?: string;
   accent?: Accent;
   /** Predicción del usuario para este partido. */
@@ -82,6 +83,7 @@ export function MatchCard({
   homeScore,
   awayScore,
   kickoff,
+  liveMinute,
   roundLabel,
   accent = "neon",
   prediction,
@@ -120,7 +122,7 @@ export function MatchCard({
       <div className={cn("h-1.5 w-full", ACCENT_BAR[accent], finished && "opacity-50")} />
 
       <div className="flex items-center justify-between px-4 pt-3">
-        <StatusPill status={status} kickoff={kickoff} />
+        <StatusPill status={status} kickoff={kickoff} liveMinute={liveMinute} />
         {roundLabel && (
           <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {roundLabel}

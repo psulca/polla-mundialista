@@ -4,13 +4,16 @@ import type { MatchStatus } from "@/lib/types";
 export function StatusPill({
   status,
   kickoff,
+  liveMinute,
   className,
 }: {
   status: MatchStatus;
   kickoff?: string;
+  liveMinute?: string | null;
   className?: string;
 }) {
   if (status === "live") {
+    const label = liveMinute === "HT" ? "HT" : liveMinute ? `${liveMinute}'` : "En vivo";
     return (
       <span
         className={cn(
@@ -22,7 +25,7 @@ export function StatusPill({
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive opacity-75" />
           <span className="relative inline-flex size-2 rounded-full bg-destructive" />
         </span>
-        En vivo
+        {label}
       </span>
     );
   }

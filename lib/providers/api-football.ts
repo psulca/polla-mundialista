@@ -63,6 +63,7 @@ function toFixture(r: RawFixture): ProviderFixture {
     ft: { home: r.score.fulltime.home, away: r.score.fulltime.away },
     homeWinner: r.teams.home.winner,
     awayWinner: r.teams.away.winner,
+    liveMinute: null, // api-football expone elapsed pero está suspendida; se añade cuando se reactive
   };
 }
 

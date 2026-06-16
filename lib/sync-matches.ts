@@ -81,6 +81,7 @@ interface DbMatch {
   home_score: number | null;
   away_score: number | null;
   advancer: string | null;
+  live_minute: string | null;
 }
 
 /** Carga los partidos de la BD con el nombre de cada equipo. */
@@ -89,7 +90,7 @@ async function loadDbMatches(db: ReturnType<typeof createAdminClient>): Promise<
     db
       .from("matches")
       .select(
-        "id, api_fixture_id, source, status, kickoff_at, home_team_id, away_team_id, home_score, away_score, advancer",
+        "id, api_fixture_id, source, status, kickoff_at, home_team_id, away_team_id, home_score, away_score, advancer, live_minute",
       ),
     db.from("teams").select("id, name"),
   ]);
@@ -105,6 +106,7 @@ async function loadDbMatches(db: ReturnType<typeof createAdminClient>): Promise<
     home_score: r.home_score,
     away_score: r.away_score,
     advancer: r.advancer,
+    live_minute: r.live_minute,
   }));
 }
 
@@ -179,12 +181,14 @@ async function applyFixtures(
         if (match.away_score !== f.ft.away) patch.away_score = f.ft.away;
         if (match.advancer !== adv) patch.advancer = adv;
         if (match.source !== "api") patch.source = "api";
+        if (match.live_minute !== null) patch.live_minute = null;
       } else if (f.status === "live") {
         // En vivo → marcador actual (solo para mostrar). Si arranca en null, 0-0.
         const h = f.goals.home ?? 0;
         const a = f.goals.away ?? 0;
         if (match.home_score !== h) patch.home_score = h;
         if (match.away_score !== a) patch.away_score = a;
+        if (match.live_minute !== f.liveMinute) patch.live_minute = f.liveMinute;
         if (match.source !== "api") patch.source = "api";
       }
     }

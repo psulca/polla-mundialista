@@ -25,6 +25,8 @@ export interface ProviderFixture {
   /** Quién avanzó (para empates de eliminatoria). null si el proveedor no lo expone. */
   homeWinner: boolean | null;
   awayWinner: boolean | null;
+  /** Minuto del reloj en vivo: número ("45") o "HT". null si no está en juego. */
+  liveMinute: string | null;
 }
 
 /** Adaptador de una fuente de marcadores. */

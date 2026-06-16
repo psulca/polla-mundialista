@@ -29,6 +29,7 @@ export interface VisorMatch {
   homeScore: number | null;
   awayScore: number | null;
   advancer: "home" | "away" | null;
+  liveMinute: string | null;
   home: VisorTeam;
   away: VisorTeam;
 }
@@ -113,7 +114,7 @@ export const getMatchesForRound = cache(async (roundId: number): Promise<VisorMa
     db
       .from("matches")
       .select(
-        "id, group_letter, stage, status, kickoff_at, home_score, away_score, advancer, home_team_id, away_team_id, home_label, away_label",
+        "id, group_letter, stage, status, kickoff_at, home_score, away_score, advancer, live_minute, home_team_id, away_team_id, home_label, away_label",
       )
       .eq("round_id", roundId)
       .order("kickoff_at"),
@@ -132,6 +133,7 @@ export const getMatchesForRound = cache(async (roundId: number): Promise<VisorMa
     homeScore: m.home_score,
     awayScore: m.away_score,
     advancer: (m.advancer as "home" | "away" | null) ?? null,
+    liveMinute: (m as { live_minute?: string | null }).live_minute ?? null,
     home: side(m.home_team_id ? byId.get(m.home_team_id) : undefined, m.home_label),
     away: side(m.away_team_id ? byId.get(m.away_team_id) : undefined, m.away_label),
   }));

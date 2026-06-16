@@ -12,6 +12,7 @@ export interface HomeMatch {
   status: MatchStatus;
   homeScore: number | null;
   awayScore: number | null;
+  liveMinute: string | null;
 }
 
 export interface HomeData {
@@ -34,7 +35,7 @@ export async function getHomeData(playerId: string | null): Promise<HomeData> {
     db
       .from("matches")
       .select(
-        "id, home_team_id, away_team_id, home_label, away_label, kickoff_at, status, home_score, away_score, round_id",
+        "id, home_team_id, away_team_id, home_label, away_label, kickoff_at, status, home_score, away_score, live_minute, round_id",
       )
       .order("kickoff_at"),
     getTeams(),
@@ -70,6 +71,7 @@ export async function getHomeData(playerId: string | null): Promise<HomeData> {
     status: m.status as MatchStatus,
     homeScore: m.home_score,
     awayScore: m.away_score,
+    liveMinute: (m as { live_minute?: string | null }).live_minute ?? null,
   });
 
   const nowMs = Date.now();
