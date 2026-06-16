@@ -13,7 +13,6 @@ import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Edit02Icon, EraserIcon, SquareLock02Icon, Coins01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { approvePlayer, toggleRound, setRoundLockMode, setKnockoutBonus, toggleEntry } from "./actions";
-import { MaliDebug } from "@/components/admin/mali-debug";
 import { fmtPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -377,13 +376,11 @@ async function AdminContent({
               ))}
             </div>
           </HScroll>
-          <MaliDebug>
-            <ScrollArea data-scroll-list className="min-h-0 flex-1">
-              <Suspense key={scoreRound?.id ?? "none"} fallback={<ScoreSkeleton />}>
-                <MarcadoresList roundId={scoreRound?.id ?? null} />
-              </Suspense>
-            </ScrollArea>
-          </MaliDebug>
+          <ScrollArea className="mt-3 min-h-0 flex-1">
+            <Suspense key={scoreRound?.id ?? "none"} fallback={<ScoreSkeleton />}>
+              <MarcadoresList roundId={scoreRound?.id ?? null} />
+            </Suspense>
+          </ScrollArea>
         </div>
       )}
     </>
@@ -406,7 +403,12 @@ function AdminTabSkeleton() {
 async function MarcadoresList({ roundId }: { roundId: number | null }) {
   const matches = roundId ? await getMatchesForRound(roundId) : [];
   return (
-    <div className="flex flex-col gap-2 pb-2">
+    <div className="rounded-2xl border border-border bg-card">
+      {matches.length === 0 && (
+        <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+          No hay partidos en esta fecha.
+        </p>
+      )}
       {matches.map((m) => (
         <ScoreEditor
           key={m.id}
@@ -425,9 +427,9 @@ async function MarcadoresList({ roundId }: { roundId: number | null }) {
 
 function ScoreSkeleton() {
   return (
-    <div className="flex flex-col gap-2 pb-2">
+    <div className="rounded-2xl border border-border bg-card">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="h-12 animate-pulse rounded-xl border border-border bg-card" />
+        <div key={i} className="h-12 animate-pulse border-b border-border bg-white/5 last:border-b-0" />
       ))}
     </div>
   );

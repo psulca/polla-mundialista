@@ -166,11 +166,4 @@
   .ring-sticker {
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06), 0 10px 30px -12px rgba(0, 0, 0, 0.8);
   }
-
-  /* ── Mali GPU diagnostic modes (admin/?debug=1) ── */
-  .dbg-no-radius [data-score-row] { border-radius: 0 !important; }
-  .dbg-no-border [data-score-row] { border: none !important; }
-  .dbg-no-bg     [data-score-row] { background: transparent !important; }
-  .dbg-no-sa     [data-scroll-list] { overflow: visible !important; height: auto !important; }
-  .dbg-bare      [data-score-row] { border-radius: 0 !important; border: none !important; background: transparent !important; }
 }
