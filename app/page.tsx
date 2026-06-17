@@ -93,7 +93,7 @@ export default async function Home() {
 
       {/* En vivo ahora — máxima prioridad, va arriba */}
       {live.length > 0 && (
-        <section className="mt-6">
+        <section className="mt-6 animate-in fade-in slide-in-from-top-2 duration-500">
           <h2 className="font-display flex items-center gap-2 text-xl">
             <span className="relative flex size-2.5">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive opacity-75" />
