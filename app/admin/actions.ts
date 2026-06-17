@@ -72,6 +72,22 @@ export async function setRoundLockMode(formData: FormData) {
   revalidateAll();
 }
 
+/** Fija el precio de inscripción de una fecha (soles enteros, ≥ 0). */
+export async function setEntryFee(formData: FormData) {
+  await assertAdmin();
+  const roundId = Number(formData.get("roundId"));
+  const raw = Number(formData.get("fee"));
+  if (!Number.isFinite(raw) || raw < 0) return;
+  const fee = Math.round(raw);
+  const { error } = await createAdminClient()
+    .from("rounds")
+    .update({ entry_fee: fee })
+    .eq("id", roundId);
+  assertOk(error, "Cambiar precio de inscripción");
+  updateTag("rounds"); // getRounds() cachea entry_fee → expirar ya.
+  revalidateAll();
+}
+
 /** Marca/desmarca que un jugador pagó (se inscribió) en una fecha. */
 export async function toggleEntry(formData: FormData) {
   await assertAdmin();
