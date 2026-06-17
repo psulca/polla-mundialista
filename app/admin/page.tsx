@@ -249,7 +249,7 @@ async function AdminContent({
                         step={1}
                         inputMode="numeric"
                         defaultValue={r.entry_fee}
-                        className="tnum w-16 rounded-lg border border-border bg-black/30 px-2 py-1 text-center text-sm outline-none focus:border-gold"
+                        className="tnum w-16 rounded-lg border border-border bg-black/30 px-2 py-1 text-center text-sm outline-none focus:border-gold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
                       <button className="rounded-lg bg-gold px-3 py-1.5 text-xs font-extrabold uppercase text-black">
                         Guardar
