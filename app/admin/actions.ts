@@ -57,21 +57,6 @@ export async function toggleRound(formData: FormData) {
   revalidateAll();
 }
 
-export async function setRoundLockMode(formData: FormData) {
-  await assertAdmin();
-  const roundId = Number(formData.get("roundId"));
-  const mode = String(formData.get("mode"));
-  if (mode !== "per_match" && mode !== "per_matchday") return;
-  const db = createAdminClient();
-  // No se puede cambiar el modo de una fecha que ya está abierta (sería injusto).
-  const { data: round } = await db.from("rounds").select("is_open").eq("id", roundId).maybeSingle();
-  if (round?.is_open) return;
-  const { error } = await db.from("rounds").update({ lock_mode: mode }).eq("id", roundId);
-  assertOk(error, "Cambiar modo de cierre");
-  updateTag("rounds"); // getRounds() cachea lock_mode → expirar ya.
-  revalidateAll();
-}
-
 /** Fija el precio de inscripción de una fecha (soles enteros, ≥ 0). */
 export async function setEntryFee(formData: FormData) {
   await assertAdmin();

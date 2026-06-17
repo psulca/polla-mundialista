@@ -12,7 +12,7 @@ import { RejectPlayer } from "@/components/admin/reject-player";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Edit02Icon, EraserIcon, SquareLock02Icon, Coins01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { approvePlayer, toggleRound, setRoundLockMode, setKnockoutBonus, toggleEntry, setEntryFee } from "./actions";
+import { approvePlayer, toggleRound, setKnockoutBonus, toggleEntry, setEntryFee } from "./actions";
 import { fmtPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -255,64 +255,6 @@ async function AdminContent({
                         Guardar
                       </button>
                     </form>
-                  ))}
-                </div>
-              </section>
-
-              {/* Modo de cierre por fecha */}
-              <section className="flex flex-col gap-3">
-                <SectionBanner accent="grape">Modo de cierre por fecha</SectionBanner>
-                <p className="-mt-1 text-xs text-muted-foreground">
-                  Cuándo se congelan los pronósticos de cada fecha. Definilo antes de abrirla.
-                </p>
-                <div className="ring-sticker overflow-hidden rounded-2xl border border-border bg-card">
-                  {rounds.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center gap-2 border-b border-border px-3 py-2.5 last:border-b-0"
-                    >
-                      <span className="flex flex-1 items-center gap-1.5 truncate text-sm font-bold">
-                        {r.is_open && (
-                          <HugeiconsIcon
-                            icon={SquareLock02Icon}
-                            size={12}
-                            strokeWidth={2}
-                            className="shrink-0 text-muted-foreground"
-                          />
-                        )}
-                        {r.label}
-                      </span>
-                      {(["per_match", "per_matchday"] as const).map((mode) => {
-                        const active = r.lock_mode === mode;
-                        const text = mode === "per_match" ? "Partido" : "Fecha";
-                        const klass = cn(
-                          "rounded-lg px-2.5 py-1 text-xs font-bold transition-colors",
-                          active ? "bg-grape text-white" : "bg-white/8 text-muted-foreground",
-                          r.is_open && !active && "opacity-40",
-                        );
-                        return r.is_open || active ? (
-                          <div key={mode} className={klass}>
-                            {text}
-                          </div>
-                        ) : (
-                          <ConfirmSubmit
-                            key={mode}
-                            action={setRoundLockMode}
-                            fields={{ roundId: String(r.id), mode }}
-                            title={`${r.label}: ¿cerrar por ${text.toLowerCase()}?`}
-                            description={
-                              mode === "per_match"
-                                ? "Cada partido se cierra en su propio kickoff."
-                                : "Toda la fecha se cierra cuando arranca el primer partido."
-                            }
-                            confirmLabel="Cambiar"
-                            className={klass}
-                          >
-                            {text}
-                          </ConfirmSubmit>
-                        );
-                      })}
-                    </div>
                   ))}
                 </div>
               </section>
