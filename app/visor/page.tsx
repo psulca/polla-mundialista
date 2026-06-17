@@ -19,7 +19,14 @@ import { fmtKickoff } from "@/lib/format";
 import { COUNTRY_ES } from "@/lib/country-names-es";
 import { cn } from "@/lib/utils";
 
-const ACCENTS: Accent[] = ["neon", "magenta", "azure", "tangerine", "gold", "grape"];
+const ACCENTS: Accent[] = [
+  "neon",
+  "magenta",
+  "azure",
+  "tangerine",
+  "gold",
+  "grape",
+];
 
 function accentForGroup(letter: string | null, i: number): Accent {
   if (letter) return ACCENTS[(letter.charCodeAt(0) - 65) % ACCENTS.length];
@@ -123,31 +130,43 @@ async function RoundContent({
   function predFor(m: VisorMatch) {
     const p = myPreds.get(m.id);
     if (!p) return undefined;
-    const finished = m.status === "finished" && m.homeScore != null && m.awayScore != null;
+    const finished =
+      m.status === "finished" && m.homeScore != null && m.awayScore != null;
     const kind: HitKind | undefined = finished
-      ? classify({ home: p.home, away: p.away }, { home: m.homeScore!, away: m.awayScore! })
+      ? classify(
+          { home: p.home, away: p.away },
+          { home: m.homeScore!, away: m.awayScore! },
+        )
       : undefined;
     return { home: p.home, away: p.away, kind };
   }
 
   return (
     <>
-      <div className="mb-3">
+      {/* Buscador + salto por grupo: fijos arriba mientras se scrollea la lista. */}
+      <div className="sticky top-0 z-20 -mx-4 border-b border-border/40 bg-background px-4 pt-2 mb-1">
         <TeamSearch teams={searchTeams} />
+        {isGroupStage && <GroupJump groups={groupLetters} />}
       </div>
-      {isGroupStage && <GroupJump groups={groupLetters} />}
 
       {isGroupStage ? (
         <div className="flex flex-col gap-5">
           {groupLetters.map((letter) => {
             const acc = accentForGroup(letter, 0);
             return (
-              <div key={letter} id={`grupo-${letter}`} className="flex scroll-mt-4 flex-col gap-3">
-                <SectionBanner accent={acc} className="sticky top-0 z-10">
-                  Grupo {letter}
-                </SectionBanner>
+              <div
+                key={letter}
+                id={`grupo-${letter}`}
+                className="flex scroll-mt-28 flex-col gap-3"
+              >
+                <SectionBanner accent={acc}>Grupo {letter}</SectionBanner>
                 {groups.get(letter)!.map((m) => (
-                  <Link key={m.id} id={`match-${m.id}`} href={`/visor/${m.id}`} className="block">
+                  <Link
+                    key={m.id}
+                    id={`match-${m.id}`}
+                    href={`/visor/${m.id}`}
+                    className="block"
+                  >
                     <MatchCard
                       accent={acc}
                       status={m.status}
@@ -168,7 +187,12 @@ async function RoundContent({
       ) : (
         <div className="flex flex-col gap-3">
           {matches.map((m, i) => (
-            <Link key={m.id} id={`match-${m.id}`} href={`/visor/${m.id}`} className="block">
+            <Link
+              key={m.id}
+              id={`match-${m.id}`}
+              href={`/visor/${m.id}`}
+              className="block"
+            >
               <MatchCard
                 accent={accentForGroup(null, i)}
                 status={m.status}
