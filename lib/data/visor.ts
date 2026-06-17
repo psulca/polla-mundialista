@@ -12,6 +12,8 @@ export interface RoundRow {
   sort_order: number;
   is_open: boolean;
   lock_mode: LockMode;
+  /** Monto de inscripción de la fecha (soles). Pozo = inscritos × esto. */
+  entry_fee: number;
 }
 
 export interface VisorTeam {
@@ -97,7 +99,7 @@ export const getRounds = cache(
       const db = createAdminClient();
       const { data, error } = await db
         .from("rounds")
-        .select("id, key, label, sort_order, is_open, lock_mode")
+        .select("id, key, label, sort_order, is_open, lock_mode, entry_fee")
         .order("sort_order");
       if (error) throw new Error(`getRounds: ${error.message}`);
       return (data ?? []) as RoundRow[];

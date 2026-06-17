@@ -1,7 +1,11 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-/** Monto que pone cada jugador por fecha (en soles). El pozo = inscritos × esto. */
+/**
+ * Monto de inscripción POR DEFECTO (soles). La fuente de verdad ahora es
+ * `rounds.entry_fee` (configurable por fecha desde el admin); esto es solo el
+ * default/fallback cuando una ronda no tiene valor.
+ */
 export const ENTRY_FEE = 10;
 
 /** Cantidad de inscritos por ronda: Map<roundId, count>. */
