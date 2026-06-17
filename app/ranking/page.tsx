@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { getLeaderboard, getRoundLeaderboard, type LeaderRow } from "@/lib/data/ranking";
 import { getRounds, type RoundRow } from "@/lib/data/visor";
-import { ENTRY_FEE } from "@/lib/data/entries";
 import { getCurrentPlayer } from "@/lib/auth/current-player";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HScroll } from "@/components/brand/h-scroll";
@@ -92,7 +91,7 @@ async function RankBody({
     : await getLeaderboard("general");
 
   // En una fecha, las filas YA son solo los inscritos → la cantidad es el pozo.
-  const pot = fechaRound ? rows.length * ENTRY_FEE : null;
+  const pot = fechaRound ? rows.length * fechaRound.entry_fee : null;
 
   return (
     <>

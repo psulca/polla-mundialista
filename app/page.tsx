@@ -204,7 +204,7 @@ export default async function Home() {
             Pozo {openRound ? `· ${openRound.label}` : ""}
           </span>
           <span className="font-display tnum mt-1 text-3xl leading-none text-gold">
-            S/ {playerCount * ENTRY_FEE}
+            S/ {playerCount * (openRound?.entry_fee ?? ENTRY_FEE)}
           </span>
           <span className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
             <HugeiconsIcon icon={UserGroupIcon} size={12} strokeWidth={2} />
