@@ -8,11 +8,12 @@ import { SectionBanner } from "@/components/brand/section-banner";
 import { HScroll } from "@/components/brand/h-scroll";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ScoreEditor } from "@/components/admin/score-editor";
+import { EntryFeeRow } from "@/components/admin/entry-fee-row";
 import { RejectPlayer } from "@/components/admin/reject-player";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Edit02Icon, EraserIcon, SquareLock02Icon, Coins01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { approvePlayer, toggleRound, setKnockoutBonus, toggleEntry, setEntryFee } from "./actions";
+import { approvePlayer, toggleRound, setKnockoutBonus, toggleEntry } from "./actions";
 import { fmtPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -234,27 +235,7 @@ async function AdminContent({
                 </p>
                 <div className="ring-sticker overflow-hidden rounded-2xl border border-border bg-card">
                   {rounds.map((r) => (
-                    <form
-                      key={r.id}
-                      action={setEntryFee}
-                      className="flex items-center gap-2 border-b border-border px-3 py-2.5 last:border-b-0"
-                    >
-                      <input type="hidden" name="roundId" value={r.id} />
-                      <span className="flex-1 truncate text-sm font-bold">{r.label}</span>
-                      <span className="text-sm text-muted-foreground">S/</span>
-                      <input
-                        name="fee"
-                        type="number"
-                        min={0}
-                        step={1}
-                        inputMode="numeric"
-                        defaultValue={r.entry_fee}
-                        className="tnum w-16 rounded-lg border border-border bg-black/30 px-2 py-1 text-center text-sm outline-none focus:border-gold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <button className="rounded-lg bg-gold px-3 py-1.5 text-xs font-extrabold uppercase text-black">
-                        Guardar
-                      </button>
-                    </form>
+                    <EntryFeeRow key={r.id} roundId={r.id} label={r.label} saved={r.entry_fee} />
                   ))}
                 </div>
               </section>
