@@ -183,11 +183,17 @@ async function applyFixtures(
         if (match.source !== "api") patch.source = "api";
         if (match.live_minute !== null) patch.live_minute = null;
       } else if (f.status === "live") {
-        // En vivo → marcador actual (solo para mostrar). Si arranca en null, 0-0.
-        const h = f.goals.home ?? 0;
-        const a = f.goals.away ?? 0;
-        if (match.home_score !== h) patch.home_score = h;
-        if (match.away_score !== a) patch.away_score = a;
+        // En vivo (solo para mostrar). Aplicamos el marcador de la API SOLO si trae
+        // datos reales; si viene null (glitch/respuesta parcial), NO pisamos el
+        // marcador guardado — un 1-0 real no debe volver a 0-0 por un bache de la API.
+        // Solo cuando el partido recién arranca y aún no hay marcador, mostramos 0-0.
+        if (f.goals.home != null && f.goals.away != null) {
+          if (match.home_score !== f.goals.home) patch.home_score = f.goals.home;
+          if (match.away_score !== f.goals.away) patch.away_score = f.goals.away;
+        } else if (match.home_score == null || match.away_score == null) {
+          patch.home_score = 0;
+          patch.away_score = 0;
+        }
         if (match.live_minute !== f.liveMinute) patch.live_minute = f.liveMinute;
         if (match.source !== "api") patch.source = "api";
       }
