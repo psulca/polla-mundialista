@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 export default async function Home() {
   const player = await getCurrentPlayer();
-  const { openRound, deadlineAt, total, filled, top, live, next, playerCount } =
+  const { openRound, deadlineAt, total, filled, top, live, next, playerCount, liveStale } =
     await getHomeData(player?.id ?? null);
   const approved = player?.status === "approved";
   const missing = approved && openRound ? Math.max(0, total - filled) : 0;
@@ -116,6 +116,15 @@ export default async function Home() {
               </Link>
             ))}
           </div>
+          {liveStale && (
+            <p className="mt-2 flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
+              <span className="relative flex size-1.5 shrink-0">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-muted-foreground opacity-75" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-muted-foreground" />
+              </span>
+              Los marcadores en vivo pueden demorar unos segundos. Se actualizan solos.
+            </p>
+          )}
         </section>
       )}
 

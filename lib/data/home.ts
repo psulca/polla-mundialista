@@ -24,14 +24,20 @@ export interface HomeData {
   live: HomeMatch[];
   next: HomeMatch | null;
   playerCount: number;
+  /** true si hay partido en vivo pero el sync no actualiza hace rato (API/cron caído). */
+  liveStale: boolean;
 }
+
+// Si hay un partido en vivo, el cron debería refrescar cada minuto. Si last_sync_at
+// pasa este umbral, asumimos que el sync está caído y avisamos suave al usuario.
+const STALE_MS = 3 * 60_000;
 
 export async function getHomeData(playerId: string | null): Promise<HomeData> {
   const db = createAdminClient();
   const rounds = await getRounds();
   const openRound = rounds.find((r) => r.is_open) ?? null;
 
-  const [matchesRes, teams, entriesRes, top, predsRes] = await Promise.all([
+  const [matchesRes, teams, entriesRes, top, predsRes, cfgRes] = await Promise.all([
     db
       .from("matches")
       .select(
@@ -52,6 +58,7 @@ export async function getHomeData(playerId: string | null): Promise<HomeData> {
     playerId
       ? db.from("predictions").select("match_id").eq("player_id", playerId)
       : Promise.resolve({ data: null }),
+    db.from("settings").select("last_sync_at").eq("id", 1).maybeSingle(),
   ]);
 
   const all = matchesRes.data ?? [];
@@ -89,6 +96,10 @@ export async function getHomeData(playerId: string | null): Promise<HomeData> {
   );
   const next = nextRaw ? toHM(nextRaw) : null;
 
+  const lastSyncAt = (cfgRes.data as { last_sync_at?: string | null } | null)?.last_sync_at;
+  const lastSyncMs = lastSyncAt ? new Date(lastSyncAt).getTime() : 0;
+  const liveStale = live.length > 0 && nowMs - lastSyncMs > STALE_MS;
+
   let deadlineAt: string | null = null;
   let total = 0;
   let filled = 0;
@@ -114,5 +125,6 @@ export async function getHomeData(playerId: string | null): Promise<HomeData> {
     live,
     next,
     playerCount: entriesRes.count ?? 0,
+    liveStale,
   };
 }
