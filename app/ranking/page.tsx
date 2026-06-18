@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { getLeaderboard, getRoundLeaderboard, type LeaderRow } from "@/lib/data/ranking";
-import { getRounds, type RoundRow } from "@/lib/data/visor";
+import { getRounds, getCurrentRound, type RoundRow } from "@/lib/data/visor";
 import { getCurrentPlayer } from "@/lib/auth/current-player";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HScroll } from "@/components/brand/h-scroll";
@@ -29,7 +29,10 @@ export default async function RankingPage({
 }) {
   const { fecha } = await searchParams;
   const rounds = await getRounds();
-  const fechaRound = fecha ? rounds.find((r) => r.key === fecha) : undefined;
+  // Sin ?fecha → arranca en la fecha "frontera" (la actual). "general" → acumulado.
+  // Una key de fecha → esa fecha. (No reordena las pestañas, solo marca la activa.)
+  const scope = fecha ?? (await getCurrentRound())?.key ?? "general";
+  const fechaRound = scope === "general" ? undefined : rounds.find((r) => r.key === scope);
   const me = await getCurrentPlayer();
 
   return (
@@ -45,10 +48,10 @@ export default async function RankingPage({
         <HScroll className="-mx-4 mt-3">
           <div className="flex gap-2 px-4">
             <Link
-              href="/ranking"
+              href="/ranking?fecha=general"
               className={cn(
                 "shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors",
-                !fechaRound ? "bg-neon text-black" : "bg-white/8 text-muted-foreground",
+                scope === "general" ? "bg-neon text-black" : "bg-white/8 text-muted-foreground",
               )}
             >
               General
@@ -71,7 +74,7 @@ export default async function RankingPage({
 
       {/* Tabla + pozo: cargan en su propio contenedor (skeleton al cambiar de fecha) */}
       <div className="mx-auto flex w-full min-h-0 max-w-md flex-1 flex-col px-4 pb-4">
-        <Suspense key={fecha ?? "general"} fallback={<RankSkeleton hasPot={!!fechaRound} />}>
+        <Suspense key={scope} fallback={<RankSkeleton hasPot={!!fechaRound} />}>
           <RankBody fechaRound={fechaRound} meId={me?.id ?? null} />
         </Suspense>
       </div>

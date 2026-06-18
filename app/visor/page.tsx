@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import {
   getRounds,
+  getCurrentRound,
   getMatchesForRound,
   getPlayerPredictions,
   type VisorMatch,
@@ -41,7 +42,11 @@ export default async function VisorPage({
   // Solo las fechas (rápido) → las pastillas y el header salen al instante.
   const rounds = await getRounds();
   const { ronda } = await searchParams;
-  const current = rounds.find((r) => r.key === ronda) ?? rounds[0];
+  // Sin ?ronda → la fecha "frontera" (la actual del torneo); si hay param, esa.
+  const current =
+    (ronda ? rounds.find((r) => r.key === ronda) : undefined) ??
+    (await getCurrentRound()) ??
+    rounds[0];
   const player = await getCurrentPlayer();
 
   const header = (

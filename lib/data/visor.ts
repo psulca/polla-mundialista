@@ -109,6 +109,21 @@ export const getRounds = cache(
   ),
 );
 
+/**
+ * Fecha "frontera" = la primera (por sort_order) con algún partido SIN terminar.
+ * Es la fecha "actual" del torneo y auto-avanza al cerrarse cada una (Fecha 1
+ * terminada → Fecha 2 → … → Final). Si todas terminaron, devuelve la última.
+ * Es el default para el visor y el ranking (no reordena: solo marca la activa).
+ */
+export const getCurrentRound = cache(async (): Promise<RoundRow | null> => {
+  const rounds = await getRounds();
+  if (rounds.length === 0) return null;
+  const db = createAdminClient();
+  const { data } = await db.from("matches").select("round_id").neq("status", "finished");
+  const pending = new Set<number>((data ?? []).map((m) => m.round_id as number));
+  return rounds.find((r) => pending.has(r.id)) ?? rounds[rounds.length - 1];
+});
+
 /** Partidos de una ronda, con equipos resueltos (join en JS, a prueba de balas). */
 export const getMatchesForRound = cache(async (roundId: number): Promise<VisorMatch[]> => {
   const db = createAdminClient();
