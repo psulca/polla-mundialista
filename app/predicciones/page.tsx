@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requireApproved } from "@/lib/auth/current-player";
 import { getPredictionScreen } from "@/lib/data/predicciones";
-import { getRounds } from "@/lib/data/visor";
+import { getRounds, getCurrentRound } from "@/lib/data/visor";
 import {
   PredictionEditor,
   type PredMatchDTO,
@@ -35,11 +35,15 @@ export default async function PrediccionesPage({
   const player = await requireApproved();
   const { ronda } = await searchParams;
 
-  // Solo las fechas abiertas (rápido) → pastillas al instante.
   const rounds = await getRounds();
   const openRounds = rounds.filter((r) => r.is_open);
-  const current = (ronda ? rounds.find((r) => r.key === ronda) : null) ?? openRounds[0] ?? null;
-  if (!current) return <Gate>No hay ninguna fecha abierta todavía. ¡Pronto!</Gate>;
+  // Default: fecha abierta; si no hay, la "frontera" (actual) en solo lectura.
+  // Así siempre podés VER tus pronósticos aunque no haya nada abierto para editar.
+  const current =
+    (ronda ? rounds.find((r) => r.key === ronda) : null) ??
+    openRounds[0] ??
+    (await getCurrentRound());
+  if (!current) return <Gate>Todavía no hay fechas. ¡Pronto!</Gate>;
 
   const header = (
     <>
@@ -47,10 +51,12 @@ export default async function PrediccionesPage({
       <p className="mt-0.5 text-sm text-muted-foreground">
         Hola, <span className="font-bold text-foreground">{player.displayName}</span>
       </p>
-      {openRounds.length > 1 && (
+      {/* Todas las fechas: podés navegar a cualquiera para VER tus pronósticos.
+          Las cerradas se muestran en solo lectura. */}
+      {rounds.length > 1 && (
         <HScroll className="-mx-4 mt-4">
           <div className="flex gap-2 px-4">
-            {openRounds.map((r) => (
+            {rounds.map((r) => (
               <Link
                 key={r.id}
                 href={`/predicciones?ronda=${r.key}`}
@@ -94,7 +100,9 @@ async function PredBody({ playerId, ronda }: { playerId: string; ronda?: string 
     pred: m.pred,
   }));
 
-  return <PredictionEditor matches={dto} roundLabel={current.label} />;
+  return (
+    <PredictionEditor matches={dto} roundLabel={current.label} roundOpen={current.is_open} />
+  );
 }
 
 function PredSkeleton() {

@@ -1,6 +1,12 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getRounds, getMatchesForRound, type VisorMatch, type RoundRow } from "./visor";
+import {
+  getRounds,
+  getCurrentRound,
+  getMatchesForRound,
+  type VisorMatch,
+  type RoundRow,
+} from "./visor";
 import { isLocked, type LockMode } from "@/lib/domain/locking";
 
 export interface PredMatch extends VisorMatch {
@@ -24,8 +30,12 @@ export async function getPredictionScreen(
   const db = createAdminClient();
   const rounds = await getRounds();
   const openRounds = rounds.filter((r) => r.is_open);
+  // Si no piden una fecha puntual: la abierta; si no hay abierta, la "frontera"
+  // (la actual del torneo) en SOLO LECTURA, para que siempre puedas ver tus picks.
   const current =
-    (roundKey ? rounds.find((r) => r.key === roundKey) : null) ?? openRounds[0] ?? null;
+    (roundKey ? rounds.find((r) => r.key === roundKey) : null) ??
+    openRounds[0] ??
+    (await getCurrentRound());
 
   if (!current) {
     return { rounds, openRounds, current: null, matches: [], filledCount: 0 };
@@ -48,14 +58,18 @@ export async function getPredictionScreen(
 
   const matches: PredMatch[] = baseMatches.map((m) => ({
     ...m,
-    locked: isLocked(
-      {
-        kickoffAt: new Date(m.kickoffAt),
-        roundFirstKickoffAt: new Date(firstKickoff ?? m.kickoffAt),
-      },
-      lockMode,
-      now,
-    ),
+    // Bloqueado = la fecha no está abierta, O el partido ya se congeló por tiempo.
+    // (Si la fecha está cerrada, TODO queda solo-lectura.)
+    locked:
+      !current.is_open ||
+      isLocked(
+        {
+          kickoffAt: new Date(m.kickoffAt),
+          roundFirstKickoffAt: new Date(firstKickoff ?? m.kickoffAt),
+        },
+        lockMode,
+        now,
+      ),
     pred: predMap.get(m.id) ?? null,
   }));
 

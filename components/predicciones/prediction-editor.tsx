@@ -34,12 +34,16 @@ function initialPreds(matches: PredMatchDTO[]): Record<number, Pred> {
 export function PredictionEditor({
   matches,
   roundLabel,
+  roundOpen,
 }: {
   matches: PredMatchDTO[];
   roundLabel: string;
+  /** Si la fecha NO está abierta, todo es solo lectura (sin botón Editar). */
+  roundOpen: boolean;
 }) {
   const hasAny = matches.some((m) => m.pred);
-  const [mode, setMode] = useState<"view" | "edit">(hasAny ? "view" : "edit");
+  // Fecha cerrada → siempre "view" (solo lectura). Abierta sin picks → arranca en edición.
+  const [mode, setMode] = useState<"view" | "edit">(roundOpen && !hasAny ? "edit" : "view");
   const [preds, setPreds] = useState<Record<number, Pred>>(() =>
     initialPreds(matches),
   );
@@ -285,7 +289,14 @@ export function PredictionEditor({
       )}
 
       {/* Barra flotante */}
-      {mode === "edit" ? (
+      {!roundOpen ? (
+        <div className="sticky bottom-4 flex justify-center">
+          <span className="flex items-center gap-1.5 rounded-full bg-white/8 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <HugeiconsIcon icon={SquareLock02Icon} size={13} strokeWidth={2} />
+            Fecha cerrada · solo lectura
+          </span>
+        </div>
+      ) : mode === "edit" ? (
         <div className="sticky bottom-3 mt-2 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-md">
           {error && (
             <p className="mb-2 rounded-lg bg-destructive/15 px-3 py-2 text-sm text-destructive">
