@@ -172,8 +172,13 @@ async function applyFixtures(
 
     // Marcador/estado: NO pisamos un marcador corregido a mano por el admin.
     if (match.source !== "manual") {
-      if (f.status !== match.status) patch.status = f.status;
-      if (f.status === "finished" && f.ft.home != null && f.ft.away != null) {
+      // El estado NO retrocede de 'finished': football-data (free) a veces rebota
+      // a IN_PLAY al cerrar un partido. Ignoramos ese rebote para que no parpadee
+      // entre "En vivo" y "Final". (Un partido terminado no vuelve a jugarse.)
+      const effStatus =
+        match.status === "finished" && f.status !== "finished" ? "finished" : f.status;
+      if (effStatus !== match.status) patch.status = effStatus;
+      if (effStatus === "finished" && f.ft.home != null && f.ft.away != null) {
         // Terminado → marcador de 90' (lo que cuenta para los puntos).
         const adv =
           f.ft.home === f.ft.away ? (f.homeWinner ? "home" : f.awayWinner ? "away" : null) : null;
@@ -182,7 +187,7 @@ async function applyFixtures(
         if (match.advancer !== adv) patch.advancer = adv;
         if (match.source !== "api") patch.source = "api";
         if (match.live_minute !== null) patch.live_minute = null;
-      } else if (f.status === "live") {
+      } else if (effStatus === "live") {
         // En vivo (solo para mostrar). Aplicamos el marcador de la API SOLO si trae
         // datos reales; si viene null (glitch/respuesta parcial), NO pisamos el
         // marcador guardado — un 1-0 real no debe volver a 0-0 por un bache de la API.
