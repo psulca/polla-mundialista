@@ -46,6 +46,7 @@ const ALIAS: Record<string, string> = {
   korearepublic: "southkorea",
   republicofkorea: "southkorea",
   czechia: "czechrepublic",
+  capeverdeislands: "capeverde",
   cotedivoire: "ivorycoast",
   congodr: "drcongo",
   // worldcup26.ir usa nombres largos; la BD (openfootball) usa formas cortas.
